@@ -1,2 +1,8 @@
 # Ewald_Summation
-HPC final projct
+
+### Members: [Zhe Chen](zc1291@cims.nyu.edu); [Guanchun Li](guanchun.li@nyu.edu)
+
+HPC Final Project, 2019 spring, Courant, NYU
+
+---
+
