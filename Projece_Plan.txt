@@ -1,0 +1,11 @@
+04/29 - 05/03 (Zhe & Guanchun)
+Literature search, write pseudocode and think about implemetnt with CUDA
+
+05/03 - 05/10 (Zhe & Guanchun)
+Write code in CUDA, run the test program & implement system code for Ewalds sum problem
+
+05/10 - 05/16 (Zhe & Guanchun)
+Finish the coding, run scalability test, prepare the numerical results & work on the report
+
+05/16 - 05/19 (Zhe & Guanchun)
+Finish the report and the presentation slides.
