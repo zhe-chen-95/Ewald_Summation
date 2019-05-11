@@ -138,8 +138,8 @@ Then we denote $\tilde{H}(\mathbf{x}_i)$ as the inverse Fourier transform of $
 
 According to the convolution argument, we have that
 \begin{align}
-\mathbf{u}^F (\mathbf{x}_m) & =  \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2}  \int_{\Omega} \tilde{H}(\mathbf{x}) e^{-2 \xi |\mathbf{x} - \mathbf{x}_m|_{\ast}^2 / \eta} \mathtt{d} \mathbf{x} \\
-& \approx \sum_{\mathbf{x}_{(i)} \ \text{in equi-space grid}} \tilde{H}(\mathbf{x}_{(i)}) e^{-2 \xi |\mathbf{x}_{(i)} - \mathbf{x}_m|_{\ast}^2 / \eta} \label{eq:gaussian_gridding_2}
+\mathbf{u}^F (\mathbf{x}_m) & =  \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2}  \int_{\Omega} \tilde{H}(\mathbf{x}) e^{-2 \xi^2 |\mathbf{x} - \mathbf{x}_m|_{\ast}^2 / \eta} \mathtt{d} \mathbf{x} \\
+& \approx \frac{V}{N_{\text{grid}}} \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2} \sum_{\mathbf{x}_{(i)} \ \text{in equi-space grid}} \tilde{H}(\mathbf{x}_{(i)}) e^{-2 \xi^2 |\mathbf{x}_{(i)} - \mathbf{x}_m|_{\ast}^2 / \eta} \label{eq:gaussian_gridding_2}
 \end{align}
 The approximation integral is spectrally accurate since the integrand is periodic.
 
@@ -168,4 +168,5 @@ The algorithm is conducted in the following way:
 \end{enumerate}
 
 \paragraph{Pseudo-code}
+
 \end{document}

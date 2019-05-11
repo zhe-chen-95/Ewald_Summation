@@ -1,0 +1,87 @@
+int M, N, P = 10, 10, 10; // Number of grids on each dimension
+double Lx, Ly, Lz; // Length of the periodic domain of each dimension
+double grid = zero_mat(3, M, N, P); // Cordinates of equi-spaced grids
+double particle = double(3, N_paricle) // Cordinates of the particles
+double strength = double(3, N_paricle) // Strength of the particles
+double xi; eta // Parameter for Ewald summation & Gaussian Gridding
+
+// Allocate the grid
+for (int i = 0; i < M; i++){
+    for (int j = 0; j < N; j++){
+        for (int k = 0; k < P; k++){
+            // index = k * (M*N) + j*N + i;
+            // grid(1, index) = i; grid(2, index) = j; grid(3, index) = k;
+            grid(:, i, j, k) = [i, j, k];
+        }
+    }
+}
+
+// Conduct Gaussian gridding to get H
+// I do it by matrix multiplication, but it's not good...
+// See Eq. (1.12)
+H = zero_mat(3, M, N, P);
+c = (2 xi**2 / (pi * eta)) ** (3/2);
+for (int i = 0; i < M; i++){
+    for (int j = 0; j < N; j++){
+        for (int k = 0; k < P; k++){
+            h = [0, 0, 0];
+            for (int l = 0; l < N_paricle; l++){
+                d_sq = (grid(:, i, j, k) - particles[:, l])^2 
+                // Suppose to be the distance of the grid to the particle
+                // But it's the distance to closest periodic image
+                // I don't know how to do it efficiently
+                h += strength[l] * exp(-2*xi**2 * d_sq / eta);
+            }
+            H(:, i, j, k) = c * h;
+        }
+    }
+}
+
+// 3D FFT on H
+H_hat = zero(3, M, N, P);
+for (int i = 0; i < 3; i++){
+    H_hat(i, :, :, :) = 3DFFT(H(i, :, :, :));
+}
+
+// Conduct scaling on H_hat
+
+for (int i = 0; i < M; i++){
+    for (int j = 0; j < N; j++){
+        for (int k = 0; k < P; k++){
+            wave_index = [i - M/2, j - N/2, k - P/2];
+            wave_length_sq = sum(power(wave_index, 2));
+            c1 = 8*pi * (1 + wave_length_sq / (4*xi**2)) / (wave_length_sq**4); // Eq. (1.5)
+            c2 = exp(-(1-eta)*wave_length_sq/(4*xi**2));  // Eq. (1.15)
+            h = H_hat(:, i,j,k) // 3-element vector
+            h_scale = (wave_length_sq * h - wave_index' * (wave_index * h)) * c1 * c2 // Still Eq. (1.15)
+            H_hat(:, i,j,k) = h_scale;
+        }
+    }
+}
+
+// Conduct 3D inverse FFT on H_hat
+for (int i = 0; i < 3; i++){
+    H(i, :, :, :) = 3DiFFT(H_hat(i, :, :, :));
+}
+
+// Conduct Gaussian gridding to get U
+// I do it by matrix multiplication, but it's not good...
+// See Eq. (1.17)
+u = zero_mat(3, N_paricle); // The velocity field at each point of particles
+c = (2 xi**2 / (pi * eta)) ** (3/2);
+for (int l = 0; l < N_paricle; l++){
+    for (int i = 0; i < M; i++){
+        for (int j = 0; j < N; j++){
+            for (int k = 0; k < P; k++){
+                u = [0, 0, 0];            
+                d_sq = (grid(:, i, j, k) - particles[:, l])^2 
+                // Suppose to be the distance of the grid to the particle
+                // But it's the distance to closest periodic image
+                // I don't know how to do it efficiently
+                u += H(:, i, k, k) * exp(-2*xi**2 * d_sq / eta);
+            }
+            u[:, l] = c * u;
+        }
+    }
+}
+
