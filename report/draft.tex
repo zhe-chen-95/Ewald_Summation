@@ -116,11 +116,11 @@ For NuFFT of type 1, introducing a free parameter $\eta$, we have that
 \begin{equation}
 \sum_{n=1}^{N} \mathbf{f}_n e ^{i \mathbf{k} \cdot \mathbf{x}_m }  = e^{\eta k^2 / 8 \xi^2} \sum_{n=1}^{N} \mathbf{f}_n e^{-\eta k^2 / 8 \xi^2} e ^{-i (\mathbf{-k}) \cdot \mathbf{x}_m }  := e^{\eta k^2 / 8 \xi^2} \hat{H}_{\mathbf{-k}}
 \end{equation}
-while $\hat{H}_{\mathbf{k}}$ is the inverse Fourier transform of 
+while $\hat{H}_{\mathbf{k}}$ is the Fourier transform of 
 \begin{equation}
 H(\mathbf{x}) = \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2}  \sum_{n=1}^N \mathbf{f}_n e^{-2 \xi^2 |\mathbf{x} - \mathbf{x}_n|_{\ast}^2 / \eta} \label{eq:gaussian_gridding_1}
 \end{equation}
-where $|\cdot|_{\ast}$ denotes distance to closest periodic image. (\textit{Remark from Guanchun: The distance is a little weird, I haven't checked if it's the inverse Fourier transform or not. Is it common in periodic setting?})
+where $|\cdot|_{\ast}$ denotes distance to closest periodic image. (\textit{Remark from Guanchun: The distance is a little weird, I haven't checked if it's the Fourier transform or not. Is it common in periodic setting?})
 
 For the part of type 2 NuFFT, under the same parameter $\eta$, first we can simplify 
 \begin{align}
