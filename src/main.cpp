@@ -5,9 +5,7 @@
 
 using namespace std;
 
-const double Pi = 3.1415927;
 
-// Main implementation
 int main(int argc, char* argv[])
 {
   long tt = clock();
