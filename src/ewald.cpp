@@ -1,6 +1,7 @@
 #include <cmath>
 #include <vector>
 #include <ctime>
+#include <fstream>
 #include "ewald.h"
 
 using namespace std;
@@ -19,6 +20,7 @@ void initialize(){
   particle = (double*)calloc(np*DIM,sizeof(double));
   strength = (double*)calloc(np*DIM,sizeof(double));
   vel = (double*)calloc(np*DIM,sizeof(double));
+  outputfile = "../results/vel.txt"
   cout << "System initialized!" << '\n';
 }
 
@@ -41,7 +43,17 @@ void selfcontribution(){
 }
 
 void writeout(){
-
+  ofstream output(outputfile);
+  output << "#Velocity obtained from Ewald summation" << endl;
+  output << np << endl;
+  for(long i = 0; i < np; i += 1){
+      output << i << " " << vel[DIM*i+0] << " " <<
+      vel[DIM*i+1] << " " <<
+      vel[DIM*i+2]<< "\n" ;
+    }
+  outfile.close();
+  outfile.clear();
+  printf("Write files into %s",outputfile);
 }
 
 void freeall(){

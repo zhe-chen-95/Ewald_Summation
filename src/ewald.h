@@ -19,4 +19,6 @@ double Lx, Ly, Lz, xi, eta;
 
 double *grid, *particle, *strength, *vel;
 
+char outputfile[256];
+
 #endif
