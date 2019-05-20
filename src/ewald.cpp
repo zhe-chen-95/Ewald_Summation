@@ -103,12 +103,13 @@ void realspace(){
       }
     }
   }
-  printf("Real space part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
+  printf("Real space part finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
 
 
 double* Gaussian_Gridding_type1(){
+  long tt = clock();
   double* H = (double*) calloc(DIM*nx*ny*nz, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
@@ -170,10 +171,13 @@ double* Gaussian_Gridding_type1(){
       }
     }
   }
+  printf("Gaussian_Gridding_type1 finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
   return H;
 }
 
-double* Gaussian_Gridding_type2(double* H){
+void Gaussian_Gridding_type2(double* H){
+  long tt = clock();
+  double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
   double* vel_F = (double*) calloc(np*DIM, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
@@ -229,13 +233,13 @@ double* Gaussian_Gridding_type2(double* H){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
           ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
           for (long m = 0; m < DIM; m++){
-            vel_F[DIM*n+m] += Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
+            vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
           }
         }
       }
     }
   }
-  return vel_F;
+  printf("Gaussian_Gridding_type2 finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
 
