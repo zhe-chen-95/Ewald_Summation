@@ -7,7 +7,8 @@
 
 using namespace std;
 
-
+// nvcc -std=c++11 -O0 -g  main.cpp ewald.cu global.cpp -lcufft -o ewald
+// nvcc -std=c++11 -O3   main.cpp ewald.cu global.cpp -lcufft -o ewald
 int main(int argc, char* argv[])
 {
   long tt = clock();
