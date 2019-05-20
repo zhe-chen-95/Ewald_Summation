@@ -233,14 +233,16 @@ void Gaussian_Gridding_type2(double* H){
   printf("Gaussian_Gridding_type2 finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
-complex<double> FFT3D(double *H){
+complex<double>* FFT3D(double *H){
   cufftHandle plan;
   cufftDoubleReal *data;
   cufftDoubleComplex *data1;
+  complex<double> *odata;
+  Malloc((void**)&odata, sizeof(complex<double>)*nx*ny*(nz/2+1)*3);
   int n[DIM] = {nx, ny, nz};
   cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
   cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
-  cudaMemcpy(data,H,nx*ny*nz*3*sizeof(cufftDoubleReal));
+  cudaMemcpy(data,H,nx*ny*nz*3*sizeof(cufftDoubleReal),cudaMemcpyHostToDevice);
   if (cudaGetLastError() != cudaSuccess){
     fprintf(stderr, "Cuda error: Failed to allocate\n");
     return;
@@ -248,27 +250,63 @@ complex<double> FFT3D(double *H){
   /* Create a 3D FFT plan. */
   if (cufftPlanMany(&plan, DIM, n,
     NULL, 1, nx*ny*nz, // *inembed, istride, idist
-    NULL, 1, nx*ny*nz, // *onembed, ostride, odist
+    NULL, 1, nx*ny*(nz/2+1), // *onembed, ostride, odist
     CUFFT_D2Z, 3) != CUFFT_SUCCESS){
       fprintf(stderr, "CUFFT error: Plan creation failed");
       return;
     }
     /* Use the CUFFT plan to transform the signal in place. */
     if (cufftExecD2Z(plan, data, data1) != CUFFT_SUCCESS){
-      fprintf(stderr, "CUFFT error: ExecC2C Forward failed");
+      fprintf(stderr, "CUFFT error: ExecD2Z Forward failed");
       return;
     }
     if (cudaDeviceSynchronize() != cudaSuccess){
       fprintf(stderr, "Cuda error: Failed to synchronize\n");
       return;
     }
+    cudaMemcpy(odata,data1,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyDeviceToHost);
     cufftDestroy(plan);
     cudaFree(data);
     cudaFree(data1);
+    return odata;
 }
 
-complex<double> IFFT3D(complex<double> *H){
-
+double* IFFT3D(complex<double> *H){
+  cufftHandle plan;
+  cufftDoubleReal *data;
+  cufftDoubleComplex *data1;
+  double *odata;
+  Malloc((void**)&odata, sizeof(double)*nx*ny*(nz)*3);
+  int n[DIM] = {nx, ny, nz};
+  cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
+  cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+  cudaMemcpy(data1,H,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyHostToDevice);
+  if (cudaGetLastError() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to allocate\n");
+    return;
+  }
+  /* Create a 3D FFT plan. */
+  if (cufftPlanMany(&plan, DIM, n,
+    NULL, 1, nx*ny*(nz/2+1), // *inembed, istride, idist
+    NULL, 1, nx*ny*nz, // *onembed, ostride, odist
+    CUFFT_Z2D, 3) != CUFFT_SUCCESS){
+      fprintf(stderr, "CUFFT error: Plan creation failed");
+      return;
+    }
+    /* Use the CUFFT plan to transform the signal in place. */
+    if (cufftExecZ2D(plan, data1, data) != CUFFT_SUCCESS){
+      fprintf(stderr, "CUFFT error: ExecZ2D Reverse failed");
+      return;
+    }
+    if (cudaDeviceSynchronize() != cudaSuccess){
+      fprintf(stderr, "Cuda error: Failed to synchronize\n");
+      return;
+    }
+    cudaMemcpy(odata,data,nx*ny*(nz)*3*sizeof(cufftDoubleReal),cudaMemcpyDeviceToHost);
+    cufftDestroy(plan);
+    cudaFree(data);
+    cudaFree(data1);
+    return odata;
 }
 
 void kspace(){
