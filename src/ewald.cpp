@@ -306,6 +306,15 @@ double* IFFT3D(complex<double> *H){
     cufftDestroy(plan);
     cudaFree(data);
     cudaFree(data1);
+    for (int idim = 0; idim<3; idim++){
+      for (int i = 0; i<nx; i++){
+        for (int j = 0; j<ny; j++){
+          for (int k = 0; k<nz; k++){
+            odata[idim*(nx*ny*nz)+i*(ny*nz)+j*nz+k]/=(nx*ny*nz);
+          }
+        }
+      }
+    }
     return odata;
 }
 
