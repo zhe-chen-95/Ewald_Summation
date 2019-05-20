@@ -24,6 +24,72 @@ void initialize(){
   // cout << "System initialized!" << '\n';
 }
 
+double* directfunc(double x, double y, double z, double xi, double *st1, double *st2){
+  double r2 = x*x + y*y + z*z;
+  double r = sqrt(r2); double r_inv = 1/r; 
+  double r3_inv = 1 / (r*r*r);
+  double v[3][2];
+  double tmp1 = 0.0, tmp2 = 0.0;
+  tmp1 = x * st1[0] + y * st1[1] + z * st1[2]
+  tmp2 = x * st2[0] + y * st2[1] + z * st2[2]
+  v =  {
+    r_inv*st2[0] + r3_inv*tmp2*x,
+    r_inv*st2[1] + r3_inv*tmp2*y,
+    r_inv*st2[2] + r3_inv*tmp2*z,
+    r_inv*st1[0] + r3_inv*tmp1*x,
+    r_inv*st1[1] + r3_inv*tmp1*y,
+    r_inv*st1[2] + r3_inv*tmp1*z,
+  };
+  return v;
+}
+
+double* direct_compute(int repeat_x, int repeat_y, int repeat_z){
+  double *vel_direct = (double*) calloc(np*DIM,sizeof(double));
+  double rx, ry, rz;
+  double *v;
+  long tt = clock();
+  for (int i = 0; i < np; i++){
+    for (int j = i+1; j < np; j++){
+      for (int px = -repeat_x; px < repeat_x; px++){
+        for (int py = -repeat_y; py < repeat_y; py++){
+          for (int pz = -repeat_z; pz < repeat_z; pz++){
+            if (px == 0 && py == 0 && pz == 0){
+              if (i != j) {
+                rx = particle[DIM*j+0]-particle[DIM*i+0];
+                ry = particle[DIM*j+1]-particle[DIM*i+1];
+                rz = particle[DIM*j+2]-particle[DIM*i+2];
+                v = directfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]));
+                vel_direct[DIM*i+0] += v[0];
+                vel_direct[DIM*i+1] += v[1];
+                vel_direct[DIM*i+2] += v[2];
+
+                vel_direct[DIM*j+0] += v[3];
+                vel_direct[DIM*j+1] += v[4];
+                vel_direct[DIM*j+2] += v[5];
+              }
+            }
+            else{
+              rx = particle[DIM*j+0]+Lx*px-particle[DIM*i+0];
+              ry = particle[DIM*j+1]+Ly*py-particle[DIM*i+1];
+              rz = particle[DIM*j+2]+Lz*pz-particle[DIM*i+2];
+              v = directfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]));
+              vel_direct[DIM*i+0] += v[0];
+              vel_direct[DIM*i+1] += v[1];
+              vel_direct[DIM*i+2] += v[2];
+
+              vel_direct[DIM*j+0] += v[3];
+              vel_direct[DIM*j+1] += v[4];
+              vel_direct[DIM*j+2] += v[5];
+            }
+          }
+        }
+      }
+    }
+  }
+  printf("Direct computation finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
+  return vel_direct;
+}
+
 double* Gaussian_Gridding_type1(int Px, int Py, int Pz){
   double* H = (double*) calloc(DIM*nx*ny*nz, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
@@ -166,10 +232,15 @@ int main(int argc, char* argv[]){
   }
   printf("%f %f \n", particle[0], particle[1]);
   long tt = clock();
-  double* H = Gaussian_Gridding_type1(24, 24, 24);
-  printf("Type1 Time:    %f     Value: %f %f \n", (clock()-tt)*1.0/CLOCKS_PER_SEC, H[0], H[nx*ny*nz/2]);
-  tt = clock();
-  double* vel_F = Gaussian_Gridding_type2(24, 24, 24, H);
-  printf("Type2 Time:    %f     Value: %f %f \n", (clock()-tt)*1.0/CLOCKS_PER_SEC, vel_F[0], vel_F[3*10]);
+  realspace();
+  printf("Time:    %f     Value: %f %f \n", (clock()-tt)*1.0/CLOCKS_PER_SEC, vel[0], vel[3*10]);
+  int repeat_x = 10, repeat_y = 10, repeat_z = 10;
+  direct_compute(int repeat_x, int repeat_y, int repeat_z);
+  // long tt = clock();
+  // double* H = Gaussian_Gridding_type1(24, 24, 24);
+  // printf("Type1 Time:    %f     Value: %f %f \n", (clock()-tt)*1.0/CLOCKS_PER_SEC, H[0], H[nx*ny*nz/2]);
+  // tt = clock();
+  // double* vel_F = Gaussian_Gridding_type2(24, 24, 24, H);
+  // printf("Type2 Time:    %f     Value: %f %f \n", (clock()-tt)*1.0/CLOCKS_PER_SEC, vel_F[0], vel_F[3*10]);
   return 0;
 }

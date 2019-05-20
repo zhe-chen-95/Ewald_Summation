@@ -37,13 +37,13 @@ double* realfunc(double x, double y, double z, double xi, double *st1, double *s
   double coef[2] = {2*(xi*e1/sqrt(M_PI)/r2+erfc(xi*r)/2/r2/r,4*xi/sqrt(M_PI)*e1};
   double *st = st1;
   tmp1 = {
-    (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2]),
+    (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2],
     (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2],
     (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2]
   };
   st = st2;
   tmp2 = {
-    (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2]),
+    (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2],
     (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2],
     (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2]
   };
