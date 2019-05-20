@@ -118,9 +118,9 @@ void realspace(){
 void Gaussian_Gridding_type1(double *H){
   long tt = clock();
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
-  double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
+  double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
   int ig, jg, kg;
-  double a = - 2 * xi * xi / eta;
+  double a =  2 * xi * xi / eta;
   double xp, yp, zp, xp_o, yp_o, zp_o;
   int ip, jp, kp;
   double* E3_x = (double*) calloc(px+1, sizeof(double));
@@ -186,9 +186,9 @@ void Gaussian_Gridding_type2(double* H){
   double* vel_F = (double*) calloc(np*DIM, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
-  double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
+  double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
   int ig, jg, kg;
-  double a = - 2 * xi * xi / eta;
+  double a = 2 * xi * xi / eta;
   double xp, yp, zp, xp_o, yp_o, zp_o;
   int ip, jp, kp;
   double* E3_x = (double*) calloc(px+1, sizeof(double));
@@ -286,20 +286,20 @@ void FFT3D(double *H, complex<double> *odata){
   return;
 }
 void IFFT3D(complex<double> *H, double *odata){
-long tt = clock();
-cufftHandle plan;
-cufftDoubleReal *data;
-cufftDoubleComplex *data1;
-int n[DIM] = {nx, ny, nz};
-cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
-cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
-cudaMemcpy(data1,H,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyHostToDevice);
-if (cudaGetLastError() != cudaSuccess){
-  fprintf(stderr, "Cuda error: Failed to allocate\n");
-  return;
-}
-/* Create a 3D FFT plan. */
-if (cufftPlanMany(&plan, DIM, n,
+  long tt = clock();
+  cufftHandle plan;
+  cufftDoubleReal *data;
+  cufftDoubleComplex *data1;
+  int n[DIM] = {nx, ny, nz};
+  cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
+  cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+  cudaMemcpy(data1,H,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyHostToDevice);
+  if (cudaGetLastError() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to allocate\n");
+    return;
+  }
+  /* Create a 3D FFT plan. */
+  if (cufftPlanMany(&plan, DIM, n,
   NULL, 1, nx*ny*(nz/2+1), // *inembed, istride, idist
   NULL, 1, nx*ny*nz, // *onembed, ostride, odist
   CUFFT_Z2D, 3) != CUFFT_SUCCESS){
@@ -346,6 +346,12 @@ void kspace(){
   for (int i = 0; i<nx; i++){
     for (int j = 0; j<ny; j++){
       for (int k = 0; k<nz/2+1; k++){
+        if (i==0 && j==0 && k==0){
+          Hx_tilde[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]={0,0};
+          Hx_tilde[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]={0,0};
+          Hx_tilde[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]={0,0};
+          continue;
+        }
         if (i<nx/2){
           kx = i*kx0;
         }
