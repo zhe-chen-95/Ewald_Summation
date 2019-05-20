@@ -52,31 +52,6 @@ void realfunc(double x, double y, double z, double xi, double *st1, double *st2,
   double tmp1[3], tmp2[3];
   double coef[2] = {2*(xi*e1/sqrt(M_PI)/r2+erfc(xi*r)/2/r2/r),4*xi/sqrt(M_PI)*e1};
   double *st = st1;
-<<<<<<< HEAD:src/ewald.cpp
-  tmp1 = {
-    (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2]),
-    (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2],
-    (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2]
-  };
-  st = st2;
-  tmp2 = {
-    (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2]),
-    (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2],
-    (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2]
-  };
-  v =  {
-    coef[0]*tmp1[0]-coef[1]*st1[0],
-    coef[0]*tmp1[1]-coef[1]*st1[1],
-    coef[0]*tmp1[2]-coef[1]*st1[2],
-    coef[0]*tmp2[0]-coef[1]*st2[0],
-    coef[0]*tmp2[1]-coef[1]*st2[1],
-    coef[0]*tmp2[2]-coef[1]*st2[2]
-  };
-  return v;
-
-
-
-=======
   tmp1[0] = (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2];
   tmp1[1] = (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2];
   tmp1[2] = (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2];
@@ -91,7 +66,6 @@ void realfunc(double x, double y, double z, double xi, double *st1, double *st2,
   v[4] = coef[0]*tmp2[1]-coef[1]*st2[1];
   v[5] = coef[0]*tmp2[2]-coef[1]*st2[2];
   return;
->>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 void realspace(){
@@ -136,22 +110,13 @@ void realspace(){
       }
     }
   }
-<<<<<<< HEAD:src/ewald.cpp
-  printf("Real space part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
-=======
   printf("Real space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
->>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 
 
-<<<<<<< HEAD:src/ewald.cpp
-double* Gaussian_Gridding_type1(){
-  double* H = (double*) calloc(DIM*nx*ny*nz, sizeof(double));
-=======
 void Gaussian_Gridding_type1(double *H){
   long tt = clock();
->>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
   int ig, jg, kg;
@@ -212,19 +177,12 @@ void Gaussian_Gridding_type1(double *H){
       }
     }
   }
-<<<<<<< HEAD:src/ewald.cpp
-  return H;
-}
-
-double* Gaussian_Gridding_type2(double* H){
-=======
   printf("Gaussian_Gridding_type1 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
   return;
 }
 
 void Gaussian_Gridding_type2(double* H){
   long tt = clock();
->>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
   double* vel_F = (double*) calloc(np*DIM, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
@@ -287,11 +245,7 @@ void Gaussian_Gridding_type2(double* H){
       }
     }
   }
-<<<<<<< HEAD:src/ewald.cpp
-  return vel_F;
-=======
   printf("Gaussian_Gridding_type2 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
->>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 void FFT3D(double *H, complex<double> *odata){
@@ -432,17 +386,11 @@ void kspace(){
       }
     }
   }
-<<<<<<< HEAD:src/ewald.cpp
-  Hx = IFFT3D(Hx_tilde);
-  Gaussian_Gridding_type2(Hx);
-  printf("k-pace part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
-=======
   IFFT3D(Hx_tilde, Hx);
   Gaussian_Gridding_type2(Hx);
   free(Hx);
   free(Hx_hat);
   printf("k-pace part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
->>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 void selfcontribution(){
