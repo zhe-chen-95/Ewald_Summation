@@ -14,11 +14,11 @@ void selfcontribution();
 void writeout();
 void free();
 
-int nx, ny, nz, np, px, py, pz;
+int nx, ny, nz, np, px, py, pz, repeat_x, repeat_y, repeat_z;
 double Lx, Ly, Lz, xi, eta;
 
 double *grid, *particle, *strength, *vel;
 
-char outputfile[256];
+string outputfile;
 
 #endif
