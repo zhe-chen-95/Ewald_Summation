@@ -293,9 +293,10 @@ void kspace(){
     }
   }
   Hx = IFFT3D(Hx_tilde);
-  double *v = Gaussian_Gridding_type2(Hx);
+  Gaussian_Gridding_type2(Hx);
   printf("k-pace part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
 }
+
 void selfcontribution(){
   long tt = clock();
   double tmp = (4*xi)/sqrt(M_PI);
