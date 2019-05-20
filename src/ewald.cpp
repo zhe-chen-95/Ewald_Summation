@@ -14,8 +14,8 @@ void initialize(){
   Lx = 10.0;
   Ly = 10.0;
   Lz = 10.0;
-  eta = 1.0;
-  xi = 1,0;
+  eta = 0.5;
+  xi = 1.0;
   np = 100;
   px = 7;
   py = 7;
@@ -76,13 +76,13 @@ void realspace(){
                 ry = particle[DIM*j+1]-particle[DIM*i+1];
                 rz = particle[DIM*j+2]-particle[DIM*i+2];
                 v = realfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]));
-                vel[DIM*i+0] += v[0];
-                vel[DIM*i+1] += v[1];
-                vel[DIM*i+2] += v[2];
+                vel[DIM*i+0] += v[3];
+                vel[DIM*i+1] += v[4];
+                vel[DIM*i+2] += v[5];
 
-                vel[DIM*j+0] += v[3];
-                vel[DIM*j+1] += v[4];
-                vel[DIM*j+2] += v[5];
+                vel[DIM*j+0] += v[0];
+                vel[DIM*j+1] += v[1];
+                vel[DIM*j+2] += v[2];
               }
             }
             else{
@@ -90,13 +90,13 @@ void realspace(){
               ry = particle[DIM*j+1]+Ly*py-particle[DIM*i+1];
               rz = particle[DIM*j+2]+Lz*pz-particle[DIM*i+2];
               v = realfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]));
-              vel[DIM*i+0] += v[0];
-              vel[DIM*i+1] += v[1];
-              vel[DIM*i+2] += v[2];
+              vel[DIM*i+0] += v[3];
+              vel[DIM*i+1] += v[4];
+              vel[DIM*i+2] += v[5];
 
-              vel[DIM*j+0] += v[3];
-              vel[DIM*j+1] += v[4];
-              vel[DIM*j+2] += v[5];
+              vel[DIM*j+0] += v[0];
+              vel[DIM*j+1] += v[1];
+              vel[DIM*j+2] += v[2];
             }
           }
         }
@@ -106,16 +106,9 @@ void realspace(){
   printf("Real space part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
 }
 
+
+
 double* Gaussian_Gridding_type1(){
-
-}
-
-double* Gaussian_Gridding_type2(double *Hx){
-
-}
-
-
-double* Gaussian_Gridding_type1(int Px, int Py, int Pz){
   double* H = (double*) calloc(DIM*nx*ny*nz, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
@@ -123,22 +116,22 @@ double* Gaussian_Gridding_type1(int Px, int Py, int Pz){
   double a = - 2 * xi * xi / eta;
   double xp, yp, zp, xp_o, yp_o, zp_o;
   int ip, jp, kp;
-  double* E3_x = (double*) calloc(Px+1, sizeof(double));
-  double* E3_y = (double*) calloc(Py+1, sizeof(double));
-  double* E3_z = (double*) calloc(Pz+1, sizeof(double));
+  double* E3_x = (double*) calloc(px+1, sizeof(double));
+  double* E3_y = (double*) calloc(py+1, sizeof(double));
+  double* E3_z = (double*) calloc(pz+1, sizeof(double));
   double E1_x, E1_y, E1_z, E2_x, E2_y, E2_z;
-  double* E2_xl = (double*) calloc(2*Px, sizeof(double));
-  double* E2_yl = (double*) calloc(2*Py, sizeof(double));
-  double* E2_zl = (double*) calloc(2*Pz, sizeof(double));
+  double* E2_xl = (double*) calloc(2*px, sizeof(double));
+  double* E2_yl = (double*) calloc(2*py, sizeof(double));
+  double* E2_zl = (double*) calloc(2*pz, sizeof(double));
   double V0, Vx, Vy, Vz;
-  for (long i = 0; i <= Px; i++) {
-      E3_x[i] = exp(-a*i*i*hx_sq);
+  for (long i = 0; i <= px; i++) {
+    E3_x[i] = exp(-a*i*i*hx_sq);
   }
-  for (long i = 0; i <= Py; i++) {
-      E3_y[i] = exp(-a*i*i*hy_sq);
+  for (long i = 0; i <= py; i++) {
+    E3_y[i] = exp(-a*i*i*hy_sq);
   }
-  for (long i = 0; i <= Pz; i++) {
-      E3_z[i] = exp(-a*i*i*hz_sq);
+  for (long i = 0; i <= pz; i++) {
+    E3_z[i] = exp(-a*i*i*hz_sq);
   }
   for (long n = 0; n < np; n++){
     xp = particle[DIM*n+0];
@@ -153,34 +146,34 @@ double* Gaussian_Gridding_type1(int Px, int Py, int Pz){
     E2_x = exp(2*a*xp_o*hx);
     E2_y = exp(2*a*yp_o*hy);
     E2_z = exp(2*a*zp_o*hz);
-    for (long i = - Px+1; i <= Px; i++) {
-        E2_xl[i+Px-1] = pow(E2_x, i);
+    for (long i = - px+1; i <= px; i++) {
+      E2_xl[i+px-1] = pow(E2_x, i);
     }
-    for (long j = -Py+1; j <= Py; j++) {
-        E2_yl[j+Py-1] = pow(E2_y, j);
+    for (long j = -py+1; j <= py; j++) {
+      E2_yl[j+py-1] = pow(E2_y, j);
     }
-    for (long k = -Pz+1; k <= Pz; k++) {
-        E2_zl[k+Pz-1] = pow(E2_z, k);
+    for (long k = -pz+1; k <= pz; k++) {
+      E2_zl[k+pz-1] = pow(E2_z, k);
     }
     V0 = E1_x * E1_y * E1_z;
-    for (long i = - Px+1; i <= Px; i++){
-      Vx = V0 * E2_xl[i+Px-1] * E3_x[abs(i)];
-      for (long j = -Py+1; j <= Py; j++){
-        Vy = Vx * E2_yl[j+Py-1] * E3_y[abs(j)];
-        for (long k = -Pz+1; k <= Pz; k++){
-            Vz = Vy * E2_zl[k+Pz-1] * E3_z[abs(k)];
-            ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
-            for (long m = 0; m < DIM; m++){
-              H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
-            }
+    for (long i = - px+1; i <= px; i++){
+      Vx = V0 * E2_xl[i+px-1] * E3_x[abs(i)];
+      for (long j = -py+1; j <= py; j++){
+        Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
+        for (long k = -pz+1; k <= pz; k++){
+          Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
+          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          for (long m = 0; m < DIM; m++){
+            H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
           }
         }
       }
     }
+  }
   return H;
 }
 
-double* Gaussian_Gridding_type2(int Px, int Py, int Pz, double* H){
+double* Gaussian_Gridding_type2(double* H){
   double* vel_F = (double*) calloc(np*DIM, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
@@ -188,22 +181,22 @@ double* Gaussian_Gridding_type2(int Px, int Py, int Pz, double* H){
   double a = - 2 * xi * xi / eta;
   double xp, yp, zp, xp_o, yp_o, zp_o;
   int ip, jp, kp;
-  double* E3_x = (double*) calloc(Px+1, sizeof(double));
-  double* E3_y = (double*) calloc(Py+1, sizeof(double));
-  double* E3_z = (double*) calloc(Pz+1, sizeof(double));
+  double* E3_x = (double*) calloc(px+1, sizeof(double));
+  double* E3_y = (double*) calloc(py+1, sizeof(double));
+  double* E3_z = (double*) calloc(pz+1, sizeof(double));
   double E1_x, E1_y, E1_z, E2_x, E2_y, E2_z;
-  double* E2_xl = (double*) calloc(2*Px, sizeof(double));
-  double* E2_yl = (double*) calloc(2*Py, sizeof(double));
-  double* E2_zl = (double*) calloc(2*Pz, sizeof(double));
+  double* E2_xl = (double*) calloc(2*px, sizeof(double));
+  double* E2_yl = (double*) calloc(2*py, sizeof(double));
+  double* E2_zl = (double*) calloc(2*pz, sizeof(double));
   double V0, Vx, Vy, Vz;
-  for (long i = 0; i <= Px; i++) {
-      E3_x[i] = exp(-a*i*i*hx_sq);
+  for (long i = 0; i <= px; i++) {
+    E3_x[i] = exp(-a*i*i*hx_sq);
   }
-  for (long i = 0; i <= Py; i++) {
-      E3_y[i] = exp(-a*i*i*hy_sq);
+  for (long i = 0; i <= py; i++) {
+    E3_y[i] = exp(-a*i*i*hy_sq);
   }
-  for (long i = 0; i <= Pz; i++) {
-      E3_z[i] = exp(-a*i*i*hz_sq);
+  for (long i = 0; i <= pz; i++) {
+    E3_z[i] = exp(-a*i*i*hz_sq);
   }
   for (long n = 0; n < np; n++){
     xp = particle[DIM*n+0];
@@ -218,26 +211,26 @@ double* Gaussian_Gridding_type2(int Px, int Py, int Pz, double* H){
     E2_x = exp(2*a*xp_o*hx);
     E2_y = exp(2*a*yp_o*hy);
     E2_z = exp(2*a*zp_o*hz);
-    for (long i = - Px+1; i <= Px; i++) {
-        E2_xl[i+Px-1] = pow(E2_x, i);
+    for (long i = - px+1; i <= px; i++) {
+      E2_xl[i+px-1] = pow(E2_x, i);
     }
-    for (long j = -Py+1; j <= Py; j++) {
-        E2_yl[j+Py-1] = pow(E2_y, j);
+    for (long j = -py+1; j <= py; j++) {
+      E2_yl[j+py-1] = pow(E2_y, j);
     }
-    for (long k = -Pz+1; k <= Pz; k++) {
-        E2_zl[k+Pz-1] = pow(E2_z, k);
+    for (long k = -pz+1; k <= pz; k++) {
+      E2_zl[k+pz-1] = pow(E2_z, k);
     }
     V0 = E1_x * E1_y * E1_z;
-    for (long i = - Px+1; i <= Px; i++){
-      Vx = V0 * E2_xl[i+Px-1] * E3_x[abs(i)];
-      for (long j = -Py+1; j <= Py; j++){
-        Vy = Vx * E2_yl[j+Py-1] * E3_y[abs(j)];
-        for (long k = -Pz+1; k <= Pz; k++){
-            Vz = Vy * E2_zl[k+Pz-1] * E3_z[abs(k)];
-            ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
-            for (long m = 0; m < DIM; m++){
-              vel_F[DIM*n+m] += Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
-            }
+    for (long i = - px+1; i <= px; i++){
+      Vx = V0 * E2_xl[i+px-1] * E3_x[abs(i)];
+      for (long j = -py+1; j <= py; j++){
+        Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
+        for (long k = -pz+1; k <= pz; k++){
+          Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
+          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          for (long m = 0; m < DIM; m++){
+            vel_F[DIM*n+m] += Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
+          }
         }
       }
     }
@@ -245,22 +238,63 @@ double* Gaussian_Gridding_type2(int Px, int Py, int Pz, double* H){
   return vel_F;
 }
 
+
+
 void kspace(){
+  long tt = clock();
   double Hx[3*nx*ny*nz];
-  complex<double> Hx_hat[3*(nx/2+1)*(ny/2+1)*(nz/2+1)];
+  complex<double> Hx_hat[3*(nx)*(ny)*(nz/2+1)];
   Hx = Gaussian_Gridding_type1();
   Hx_hat =  FFT3D(Hx);
-
-  for (int idim = 0; idim<3; idim++){
-    for (int i = 0; i<nx/2+1; i++){
-      for (int j = 0; j<ny/2+1; j++){
-        for (int k = 0; k<nz/2+1; k++){
-          Hx_hat[idim*(nx/2+1)*(ny/2+1)*(nz/2+1)+i*(ny/2+1)*(nz/2+1)+j*(nx/2+1)+k] =
+  complex<double> Hx_tilde[3*(nx)*(ny)*(nz/2+1)];
+  double kx, ky, kz, k2, e1;
+  double kx0=2*M_PI/Lx, ky0=2*M_PI/Ly, kz0=2*M_PI/Lz;
+  for (int i = 0; i<nx; i++){
+    for (int j = 0; j<ny; j++){
+      for (int k = 0; k<nz/2+1; k++){
+        if (i<nx/2){
+          kx = i*kx0;
         }
+        else{
+          kx = (i-nx)*kx0;
+        }
+        if (j<ny/2){
+          ky = j*ky0;
+        }
+        else{
+          ky = (j-ny)*ky0;
+        }
+        if (k<nz/2){
+          kz = k*kz0;
+        }
+        else{
+          kz = (k-nz)*kz0;
+        }
+        k2 = kx*kx + ky*ky + kz*kz;
+        e1 = exp(-(1-eta)*k2/4/xi/xi);
+        Hx_tilde[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k] = e1*
+        8*M_PI*(1+k2/4/xi/xi)/k2/k2*
+        ((k2-kx*kx)*Hx_hat[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-kx*ky)*Hx_hat[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-kx*kz)*Hx_hat[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]);
+
+        Hx_tilde[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k] = e1*
+        8*M_PI*(1+k2/4/xi/xi)/k2/k2*
+        ((-ky*kx)*Hx_hat[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (k2-ky*ky)*Hx_hat[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-ky*kz)*Hx_hat[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]);
+
+        Hx_tilde[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k] = e1*
+        8*M_PI*(1+k2/4/xi/xi)/k2/k2*
+        ((-kz*kx)*Hx_hat[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-kz*ky)*Hx_hat[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (k2-kz*kz)*Hx_hat[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]);
       }
     }
   }
-
+  Hx = IFFT3D(Hx_tilde);
+  double *v = Gaussian_Gridding_type2(Hx);
+  printf("k-pace part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
 }
 void selfcontribution(){
   long tt = clock();
@@ -279,10 +313,10 @@ void writeout(){
   output << "#Velocity obtained from Ewald summation" << endl;
   output << np << endl;
   for(long i = 0; i < np; i += 1){
-      output << i << " " << vel[DIM*i+0] << " " <<
-      vel[DIM*i+1] << " " <<
-      vel[DIM*i+2]<< "\n" ;
-    }
+    output << i << " " << vel[DIM*i+0] << " " <<
+    vel[DIM*i+1] << " " <<
+    vel[DIM*i+2]<< "\n" ;
+  }
   outfile.close();
   outfile.clear();
   printf("Write files into %s",outputfile);
