@@ -6,11 +6,13 @@
 #include <complex>
 #include <cufft.h>
 #include <cstdio>
+#include <stdlib.h>
 #include "ewald.h"
 
 using namespace std;
 
 void initialize(){
+  srand((unsigned int)clock());
   nx = 10;
   ny = 10;
   nz = 10;
@@ -30,6 +32,14 @@ void initialize(){
   particle = (double*)calloc(np*DIM,sizeof(double));
   strength = (double*)calloc(np*DIM,sizeof(double));
   vel = (double*)calloc(np*DIM,sizeof(double));
+  for (int i = 0; i<np; i++){
+    particle[DIM*i+0] = rand()*1.0/RAND_MAX*Lx;
+    particle[DIM*i+1] = rand()*1.0/RAND_MAX*Ly;
+    particle[DIM*i+2] = rand()*1.0/RAND_MAX*Lz;
+    strength[DIM*i+0] = 1.0;
+    strength[DIM*i+1] = 1.0;
+    strength[DIM*i+2] = 1.0;
+  }
   outputfile = "../results/vel.txt";
   cout << "System initialized! # of particles: " << np << '\n';
 }
@@ -38,7 +48,7 @@ void initialize(){
 void realfunc(double x, double y, double z, double xi, double *st1, double *st2, double *v){
   double r2 = x*x + y*y + z*z;
   double r = sqrt(r2);
-  double e1 = exp(xi*xi*r2);
+  double e1 = exp(-xi*xi*r2);
   double tmp1[3], tmp2[3];
   double coef[2] = {2*(xi*e1/sqrt(M_PI)/r2+erfc(xi*r)/2/r2/r),4*xi/sqrt(M_PI)*e1};
   double *st = st1;
@@ -100,7 +110,7 @@ void realspace(){
       }
     }
   }
-  printf("Real space part finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Real space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
 
@@ -167,7 +177,7 @@ void Gaussian_Gridding_type1(double *H){
       }
     }
   }
-  printf("Gaussian_Gridding_type1 finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Gaussian_Gridding_type1 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
   return;
 }
 
@@ -235,10 +245,11 @@ void Gaussian_Gridding_type2(double* H){
       }
     }
   }
-  printf("Gaussian_Gridding_type2 finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Gaussian_Gridding_type2 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
 void FFT3D(double *H, complex<double> *odata){
+  long tt = clock();
   cufftHandle plan;
   cufftDoubleReal *data;
   cufftDoubleComplex *data1;
@@ -257,66 +268,68 @@ void FFT3D(double *H, complex<double> *odata){
     CUFFT_D2Z, 3) != CUFFT_SUCCESS){
       fprintf(stderr, "CUFFT error: Plan creation failed");
       return;
-    }
-    /* Use the CUFFT plan to transform the signal in place. */
-    if (cufftExecD2Z(plan, data, data1) != CUFFT_SUCCESS){
-      fprintf(stderr, "CUFFT error: ExecD2Z Forward failed");
-      return;
-    }
-    if (cudaDeviceSynchronize() != cudaSuccess){
-      fprintf(stderr, "Cuda error: Failed to synchronize\n");
-      return;
-    }
-    cudaMemcpy(odata,data1,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyDeviceToHost);
-    cufftDestroy(plan);
-    cudaFree(data);
-    cudaFree(data1);
-    return;
-}
-
-void IFFT3D(complex<double> *H, double *odata){
-  cufftHandle plan;
-  cufftDoubleReal *data;
-  cufftDoubleComplex *data1;
-  int n[DIM] = {nx, ny, nz};
-  cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
-  cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
-  cudaMemcpy(data1,H,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyHostToDevice);
-  if (cudaGetLastError() != cudaSuccess){
-    fprintf(stderr, "Cuda error: Failed to allocate\n");
+  }
+  /* Use the CUFFT plan to transform the signal in place. */
+  if (cufftExecD2Z(plan, data, data1) != CUFFT_SUCCESS){
+    fprintf(stderr, "CUFFT error: ExecD2Z Forward failed");
     return;
   }
-  /* Create a 3D FFT plan. */
-  if (cufftPlanMany(&plan, DIM, n,
-    NULL, 1, nx*ny*(nz/2+1), // *inembed, istride, idist
-    NULL, 1, nx*ny*nz, // *onembed, ostride, odist
-    CUFFT_Z2D, 3) != CUFFT_SUCCESS){
-      fprintf(stderr, "CUFFT error: Plan creation failed");
-      return;
-    }
-    /* Use the CUFFT plan to transform the signal in place. */
-    if (cufftExecZ2D(plan, data1, data) != CUFFT_SUCCESS){
-      fprintf(stderr, "CUFFT error: ExecZ2D Reverse failed");
-      return;
-    }
-    if (cudaDeviceSynchronize() != cudaSuccess){
-      fprintf(stderr, "Cuda error: Failed to synchronize\n");
-      return;
-    }
-    cudaMemcpy(odata,data,nx*ny*(nz)*3*sizeof(cufftDoubleReal),cudaMemcpyDeviceToHost);
-    cufftDestroy(plan);
-    cudaFree(data);
-    cudaFree(data1);
-    for (int idim = 0; idim<3; idim++){
-      for (int i = 0; i<nx; i++){
-        for (int j = 0; j<ny; j++){
-          for (int k = 0; k<nz; k++){
-            odata[idim*(nx*ny*nz)+i*(ny*nz)+j*nz+k]/=(nx*ny*nz);
-          }
+  if (cudaDeviceSynchronize() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to synchronize\n");
+    return;
+  }
+  cudaMemcpy(odata,data1,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyDeviceToHost);
+  cufftDestroy(plan);
+  cudaFree(data);
+  cudaFree(data1);
+  printf("FFT finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  return;
+}
+void IFFT3D(complex<double> *H, double *odata){
+long tt = clock();
+cufftHandle plan;
+cufftDoubleReal *data;
+cufftDoubleComplex *data1;
+int n[DIM] = {nx, ny, nz};
+cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
+cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+cudaMemcpy(data1,H,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyHostToDevice);
+if (cudaGetLastError() != cudaSuccess){
+  fprintf(stderr, "Cuda error: Failed to allocate\n");
+  return;
+}
+/* Create a 3D FFT plan. */
+if (cufftPlanMany(&plan, DIM, n,
+  NULL, 1, nx*ny*(nz/2+1), // *inembed, istride, idist
+  NULL, 1, nx*ny*nz, // *onembed, ostride, odist
+  CUFFT_Z2D, 3) != CUFFT_SUCCESS){
+    fprintf(stderr, "CUFFT error: Plan creation failed");
+    return;
+  }
+  /* Use the CUFFT plan to transform the signal in place. */
+  if (cufftExecZ2D(plan, data1, data) != CUFFT_SUCCESS){
+    fprintf(stderr, "CUFFT error: ExecZ2D Reverse failed");
+    return;
+  }
+  if (cudaDeviceSynchronize() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to synchronize\n");
+    return;
+  }
+  cudaMemcpy(odata,data,nx*ny*(nz)*3*sizeof(cufftDoubleReal),cudaMemcpyDeviceToHost);
+  cufftDestroy(plan);
+  cudaFree(data);
+  cudaFree(data1);
+  for (int idim = 0; idim<3; idim++){
+    for (int i = 0; i<nx; i++){
+      for (int j = 0; j<ny; j++){
+        for (int k = 0; k<nz; k++){
+          odata[idim*(nx*ny*nz)+i*(ny*nz)+j*nz+k]/=(nx*ny*nz);
         }
       }
     }
-    return;
+  }
+  printf("IFFT finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  return;
 }
 
 void kspace(){
@@ -377,7 +390,7 @@ void kspace(){
   Gaussian_Gridding_type2(Hx);
   free(Hx);
   free(Hx_hat);
-  printf("k-pace part finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("k-pace part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
 void selfcontribution(){
@@ -388,7 +401,7 @@ void selfcontribution(){
     vel[DIM*i+1] -= tmp*strength[DIM*i+1];
     vel[DIM*i+2] -= tmp*strength[DIM*i+2];
   }
-  printf("Self Contribution part finished with %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Self Contribution part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 
 }
 
@@ -403,7 +416,7 @@ void writeout(){
   }
   output.close();
   output.clear();
-  printf("Write files into %s",outputfile.c_str());
+  printf("Write files into %s\n",outputfile.c_str());
 }
 
 void freeall(){

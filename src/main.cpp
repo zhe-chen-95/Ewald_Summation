@@ -16,6 +16,6 @@ int main(int argc, char* argv[])
   kspace();
   selfcontribution();
   writeout();
-  printf("Total time is %ds\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Total time is %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
   return 0;
 }
