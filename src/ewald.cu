@@ -178,12 +178,13 @@ void Gaussian_Gridding_type1(double *H){
     }
   }
   printf("Gaussian_Gridding_type1 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  free(E3_x);free(E3_y);free(E3_z);
+  free(E2_xl);free(E2_yl);free(E2_zl);
   return;
 }
 
 void Gaussian_Gridding_type2(double* H){
   long tt = clock();
-  double* vel_F = (double*) calloc(np*DIM, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
@@ -214,7 +215,6 @@ void Gaussian_Gridding_type2(double* H){
     zp = particle[DIM*n+2];
     ip = xp/hx; jp = yp/hy; kp = zp/hz;
     xp_o = xp - ip*hx; yp_o = yp - jp*hy; zp_o = zp - kp*hz;
-
     E1_x = exp(-a*xp_o*xp_o);
     E1_y = exp(-a*yp_o*yp_o);
     E1_z = exp(-a*zp_o*zp_o);
@@ -239,13 +239,15 @@ void Gaussian_Gridding_type2(double* H){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
           ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
           for (long m = 0; m < DIM; m++){
-            vel_F[DIM*n+m] += Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
+            vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
           }
         }
       }
     }
   }
   printf("Gaussian_Gridding_type2 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  free(E3_x);free(E3_y);free(E3_z);
+  free(E2_xl);free(E2_yl);free(E2_zl);
 }
 
 void FFT3D(double *H, complex<double> *odata){
