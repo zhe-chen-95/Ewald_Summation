@@ -14,7 +14,7 @@ void selfcontribution();
 void writeout();
 void free();
 
-int nx, ny, nz, np;
+int nx, ny, nz, np, px, py, pz;
 double Lx, Ly, Lz, xi, eta;
 
 double *grid, *particle, *strength, *vel;
