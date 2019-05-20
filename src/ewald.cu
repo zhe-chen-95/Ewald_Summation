@@ -2,12 +2,17 @@
 #include <vector>
 #include <ctime>
 #include <fstream>
+#include <iostream>
 #include <complex>
+#include <cufft.h>
+#include <cstdio>
+#include <stdlib.h>
 #include "ewald.h"
 
 using namespace std;
 
 void initialize(){
+  srand((unsigned int)clock());
   nx = 10;
   ny = 10;
   nz = 10;
@@ -20,22 +25,34 @@ void initialize(){
   px = 7;
   py = 7;
   pz = 7;
+  repeat_x = 2;
+  repeat_y = 2;
+  repeat_z = 2;
   grid = (double*)calloc(np*DIM,sizeof(double));
   particle = (double*)calloc(np*DIM,sizeof(double));
   strength = (double*)calloc(np*DIM,sizeof(double));
   vel = (double*)calloc(np*DIM,sizeof(double));
+  for (int i = 0; i<np; i++){
+    particle[DIM*i+0] = rand()*1.0/RAND_MAX*Lx;
+    particle[DIM*i+1] = rand()*1.0/RAND_MAX*Ly;
+    particle[DIM*i+2] = rand()*1.0/RAND_MAX*Lz;
+    strength[DIM*i+0] = 1.0;
+    strength[DIM*i+1] = 1.0;
+    strength[DIM*i+2] = 1.0;
+  }
   outputfile = "../results/vel.txt";
   cout << "System initialized! # of particles: " << np << '\n';
 }
 
 
-double* realfunc(double x, double y, double z, double xi, double *st1, double *st2){
+void realfunc(double x, double y, double z, double xi, double *st1, double *st2, double *v){
   double r2 = x*x + y*y + z*z;
   double r = sqrt(r2);
-  double e1 = exp(xi*xi*r2);
-  double v[3][2], tmp1[3], tmp2[3];
-  double coef[2] = {2*(xi*e1/sqrt(M_PI)/r2+erfc(xi*r)/2/r2/r,4*xi/sqrt(M_PI)*e1};
+  double e1 = exp(-xi*xi*r2);
+  double tmp1[3], tmp2[3];
+  double coef[2] = {2*(xi*e1/sqrt(M_PI)/r2+erfc(xi*r)/2/r2/r),4*xi/sqrt(M_PI)*e1};
   double *st = st1;
+<<<<<<< HEAD:src/ewald.cpp
   tmp1 = {
     (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2]),
     (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2],
@@ -59,11 +76,27 @@ double* realfunc(double x, double y, double z, double xi, double *st1, double *s
 
 
 
+=======
+  tmp1[0] = (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2];
+  tmp1[1] = (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2];
+  tmp1[2] = (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2];
+  st = st2;
+  tmp2[0] = (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2];
+  tmp2[1] = (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2];
+  tmp2[2] = (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2];
+  v[0] = coef[0]*tmp1[0]-coef[1]*st1[0];
+  v[1] = coef[0]*tmp1[1]-coef[1]*st1[1];
+  v[2] = coef[0]*tmp1[2]-coef[1]*st1[2];
+  v[3] = coef[0]*tmp2[0]-coef[1]*st2[0];
+  v[4] = coef[0]*tmp2[1]-coef[1]*st2[1];
+  v[5] = coef[0]*tmp2[2]-coef[1]*st2[2];
+  return;
+>>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 void realspace(){
   double rx, ry, rz;
-  double *v;
+  double v[6];
   long tt = clock();
   for (int i = 0; i < np; i++){
     for (int j = i+1; j < np; j++){
@@ -75,7 +108,7 @@ void realspace(){
                 rx = particle[DIM*j+0]-particle[DIM*i+0];
                 ry = particle[DIM*j+1]-particle[DIM*i+1];
                 rz = particle[DIM*j+2]-particle[DIM*i+2];
-                v = realfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]));
+                realfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]), v);
                 vel[DIM*i+0] += v[3];
                 vel[DIM*i+1] += v[4];
                 vel[DIM*i+2] += v[5];
@@ -89,7 +122,7 @@ void realspace(){
               rx = particle[DIM*j+0]+Lx*px-particle[DIM*i+0];
               ry = particle[DIM*j+1]+Ly*py-particle[DIM*i+1];
               rz = particle[DIM*j+2]+Lz*pz-particle[DIM*i+2];
-              v = realfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]));
+              realfunc(rx, ry, rz, xi, &(strength[DIM*i]), &(strength[DIM*j]), v);
               vel[DIM*i+0] += v[3];
               vel[DIM*i+1] += v[4];
               vel[DIM*i+2] += v[5];
@@ -103,13 +136,22 @@ void realspace(){
       }
     }
   }
+<<<<<<< HEAD:src/ewald.cpp
   printf("Real space part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
+=======
+  printf("Real space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+>>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 
 
+<<<<<<< HEAD:src/ewald.cpp
 double* Gaussian_Gridding_type1(){
   double* H = (double*) calloc(DIM*nx*ny*nz, sizeof(double));
+=======
+void Gaussian_Gridding_type1(double *H){
+  long tt = clock();
+>>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
   int ig, jg, kg;
@@ -170,12 +212,22 @@ double* Gaussian_Gridding_type1(){
       }
     }
   }
+<<<<<<< HEAD:src/ewald.cpp
   return H;
 }
 
 double* Gaussian_Gridding_type2(double* H){
+=======
+  printf("Gaussian_Gridding_type1 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  return;
+}
+
+void Gaussian_Gridding_type2(double* H){
+  long tt = clock();
+>>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
   double* vel_F = (double*) calloc(np*DIM, sizeof(double));
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
+  double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hy * hy;
   int ig, jg, kg;
   double a = - 2 * xi * xi / eta;
@@ -235,17 +287,105 @@ double* Gaussian_Gridding_type2(double* H){
       }
     }
   }
+<<<<<<< HEAD:src/ewald.cpp
   return vel_F;
+=======
+  printf("Gaussian_Gridding_type2 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+>>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
-
+void FFT3D(double *H, complex<double> *odata){
+  long tt = clock();
+  cufftHandle plan;
+  cufftDoubleReal *data;
+  cufftDoubleComplex *data1;
+  int n[DIM] = {nx, ny, nz};
+  cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
+  cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+  cudaMemcpy(data,H,nx*ny*nz*3*sizeof(cufftDoubleReal),cudaMemcpyHostToDevice);
+  if (cudaGetLastError() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to allocate\n");
+    return;
+  }
+  /* Create a 3D FFT plan. */
+  if (cufftPlanMany(&plan, DIM, n,
+    NULL, 1, nx*ny*nz, // *inembed, istride, idist
+    NULL, 1, nx*ny*(nz/2+1), // *onembed, ostride, odist
+    CUFFT_D2Z, 3) != CUFFT_SUCCESS){
+      fprintf(stderr, "CUFFT error: Plan creation failed");
+      return;
+  }
+  /* Use the CUFFT plan to transform the signal in place. */
+  if (cufftExecD2Z(plan, data, data1) != CUFFT_SUCCESS){
+    fprintf(stderr, "CUFFT error: ExecD2Z Forward failed");
+    return;
+  }
+  if (cudaDeviceSynchronize() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to synchronize\n");
+    return;
+  }
+  cudaMemcpy(odata,data1,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyDeviceToHost);
+  cufftDestroy(plan);
+  cudaFree(data);
+  cudaFree(data1);
+  printf("FFT finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  return;
+}
+void IFFT3D(complex<double> *H, double *odata){
+long tt = clock();
+cufftHandle plan;
+cufftDoubleReal *data;
+cufftDoubleComplex *data1;
+int n[DIM] = {nx, ny, nz};
+cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
+cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+cudaMemcpy(data1,H,nx*ny*(nz/2+1)*3*sizeof(cufftDoubleComplex),cudaMemcpyHostToDevice);
+if (cudaGetLastError() != cudaSuccess){
+  fprintf(stderr, "Cuda error: Failed to allocate\n");
+  return;
+}
+/* Create a 3D FFT plan. */
+if (cufftPlanMany(&plan, DIM, n,
+  NULL, 1, nx*ny*(nz/2+1), // *inembed, istride, idist
+  NULL, 1, nx*ny*nz, // *onembed, ostride, odist
+  CUFFT_Z2D, 3) != CUFFT_SUCCESS){
+    fprintf(stderr, "CUFFT error: Plan creation failed");
+    return;
+  }
+  /* Use the CUFFT plan to transform the signal in place. */
+  if (cufftExecZ2D(plan, data1, data) != CUFFT_SUCCESS){
+    fprintf(stderr, "CUFFT error: ExecZ2D Reverse failed");
+    return;
+  }
+  if (cudaDeviceSynchronize() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to synchronize\n");
+    return;
+  }
+  cudaMemcpy(odata,data,nx*ny*(nz)*3*sizeof(cufftDoubleReal),cudaMemcpyDeviceToHost);
+  cufftDestroy(plan);
+  cudaFree(data);
+  cudaFree(data1);
+  for (int idim = 0; idim<3; idim++){
+    for (int i = 0; i<nx; i++){
+      for (int j = 0; j<ny; j++){
+        for (int k = 0; k<nz; k++){
+          odata[idim*(nx*ny*nz)+i*(ny*nz)+j*nz+k]/=(nx*ny*nz);
+        }
+      }
+    }
+  }
+  printf("IFFT finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  return;
+}
 
 void kspace(){
   long tt = clock();
-  double Hx[3*nx*ny*nz];
-  complex<double> Hx_hat[3*(nx)*(ny)*(nz/2+1)];
-  Hx = Gaussian_Gridding_type1();
-  Hx_hat =  FFT3D(Hx);
+  double *Hx;
+  Hx = (double*)malloc(sizeof(double)*nx*ny*(nz)*3);
+  Gaussian_Gridding_type1(Hx);
+  complex<double> *Hx_hat;
+  Hx_hat = (complex<double>*)malloc(sizeof(complex<double>)*nx*ny*(nz/2+1)*3);
+  FFT3D(Hx, Hx_hat);
   complex<double> Hx_tilde[3*(nx)*(ny)*(nz/2+1)];
   double kx, ky, kz, k2, e1;
   double kx0=2*M_PI/Lx, ky0=2*M_PI/Ly, kz0=2*M_PI/Lz;
@@ -292,9 +432,17 @@ void kspace(){
       }
     }
   }
+<<<<<<< HEAD:src/ewald.cpp
   Hx = IFFT3D(Hx_tilde);
   Gaussian_Gridding_type2(Hx);
   printf("k-pace part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
+=======
+  IFFT3D(Hx_tilde, Hx);
+  Gaussian_Gridding_type2(Hx);
+  free(Hx);
+  free(Hx_hat);
+  printf("k-pace part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+>>>>>>> e65a0d6e4980fecf0048be87de70f58e3b739fe3:src/ewald.cu
 }
 
 void selfcontribution(){
@@ -305,7 +453,7 @@ void selfcontribution(){
     vel[DIM*i+1] -= tmp*strength[DIM*i+1];
     vel[DIM*i+2] -= tmp*strength[DIM*i+2];
   }
-  printf("Self Contribution part finished with %ds\n",(clock()-tt)*1.0/CLOCK_PER_SEC);
+  printf("Self Contribution part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 
 }
 
@@ -318,9 +466,9 @@ void writeout(){
     vel[DIM*i+1] << " " <<
     vel[DIM*i+2]<< "\n" ;
   }
-  outfile.close();
-  outfile.clear();
-  printf("Write files into %s",outputfile);
+  output.close();
+  output.clear();
+  printf("Write files into %s\n",outputfile.c_str());
 }
 
 void freeall(){

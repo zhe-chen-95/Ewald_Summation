@@ -3,9 +3,6 @@
 #define DIM 3
 using namespace std;
 
-double norm(double x,double y,double z);
-
-double dp(double x,double y,double z,double xx,double yy,double zz);
 
 void initialize();
 void realspace();
@@ -14,11 +11,11 @@ void selfcontribution();
 void writeout();
 void free();
 
-int nx, ny, nz, np, px, py, pz;
-double Lx, Ly, Lz, xi, eta;
+extern int nx, ny, nz, np, px, py, pz, repeat_x, repeat_y, repeat_z;
+extern double Lx, Ly, Lz, xi, eta;
 
-double *grid, *particle, *strength, *vel;
+extern double *grid, *particle, *strength, *vel;
 
-char outputfile[256];
+extern string outputfile;
 
 #endif
