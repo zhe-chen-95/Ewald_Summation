@@ -7,24 +7,25 @@
 #include <cufft.h>
 #include <cstdio>
 #include <stdlib.h>
+#include <omp.h>
 #include "ewald.h"
 
 using namespace std;
 
 void initialize(){
-  srand((unsigned int)clock());
-  nx = 10;
-  ny = 10;
-  nz = 10;
-  Lx = 10.0;
-  Ly = 10.0;
-  Lz = 10.0;
-  eta = 0.5;
-  xi = 1.0;
-  np = 100;
-  px = 7;
-  py = 7;
-  pz = 7;
+  srand((unsigned int) 100005);
+  nx = 20;
+  ny = 20;
+  nz = 20;
+  Lx = 2.0;
+  Ly = 2.0;
+  Lz = 2.0;
+  eta = 1.15;
+  xi = 10;
+  np = 16;
+  px = 8;
+  py = 8;
+  pz = 8;
   repeat_x = 2;
   repeat_y = 2;
   repeat_z = 2;
@@ -40,7 +41,7 @@ void initialize(){
     strength[DIM*i+1] = 1.0;
     strength[DIM*i+2] = 1.0;
   }
-  outputfile = "../results/vel.txt";
+  outputfile = "../results/vel2.txt";
   cout << "System initialized! # of particles: " << np << '\n';
 }
 
@@ -67,6 +68,22 @@ void realfunc(double x, double y, double z, double xi, double *st1, double *st2,
   v[5] = coef[0]*tmp2[2]-coef[1]*st2[2];
   return;
 }
+
+void realfuncOMP(double x, double y, double z, double xi, double *st, double *v){
+  double r2 = x*x + y*y + z*z;
+  double r = sqrt(r2);
+  double e1 = exp(-xi*xi*r2);
+  double tmp1[3];
+  double coef[2] = {2*(xi*e1/sqrt(M_PI)/r2+erfc(xi*r)/2/r2/r),4*xi/sqrt(M_PI)*e1};
+  tmp1[0] = (r2+x*x)*st[0]+(x*y)*st[1]+(x*z)*st[2];
+  tmp1[1] = (y*x)*st[0]+(r2+y*y)*st[1]+(y*z)*st[2];
+  tmp1[2] = (z*x)*st[0]+(z*y)*st[1]+(r2+z*z)*st[2];
+  v[0] = coef[0]*tmp1[0]-coef[1]*st[0];
+  v[1] = coef[0]*tmp1[1]-coef[1]*st[1];
+  v[2] = coef[0]*tmp1[2]-coef[1]*st[2];
+  return;
+}
+
 
 void realspace(){
   double rx, ry, rz;
@@ -113,6 +130,51 @@ void realspace(){
   printf("Real space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
 }
 
+
+void realspaceOMP(int num_threads){
+  #if defined(_OPENMP)
+	int threads_all = omp_get_num_procs();
+	cout << "Number of cpus in this machine: " << threads_all << endl;
+	omp_set_num_threads(num_threads);
+	cout << "Use " << num_threads << " threads" << endl;
+	#endif
+  double rx, ry, rz;
+  double v[3];
+  long tt = clock();
+  #pragma omp parallel for
+  for (int i = 0; i < np; i++){
+    for (int j = 0; j < np; j++){
+      for (int px = -repeat_x; px < repeat_x; px++){
+        for (int py = -repeat_y; py < repeat_y; py++){
+          for (int pz = -repeat_z; pz < repeat_z; pz++){
+            if (px == 0 && py == 0 && pz == 0){
+              if (i != j) {
+                rx = particle[DIM*j+0]-particle[DIM*i+0];
+                ry = particle[DIM*j+1]-particle[DIM*i+1];
+                rz = particle[DIM*j+2]-particle[DIM*i+2];
+                realfuncOMP(rx, ry, rz, xi, &(strength[DIM*j]), v);
+                vel[DIM*i+0] += v[0];
+                vel[DIM*i+1] += v[1];
+                vel[DIM*i+2] += v[2];
+              }
+            }
+            else{
+              rx = particle[DIM*j+0]+Lx*px-particle[DIM*i+0];
+              ry = particle[DIM*j+1]+Ly*py-particle[DIM*i+1];
+              rz = particle[DIM*j+2]+Lz*pz-particle[DIM*i+2];
+              realfuncOMP(rx, ry, rz, xi, &(strength[DIM*j]), v);
+              vel[DIM*i+0] += v[0];
+              vel[DIM*i+1] += v[1];
+              vel[DIM*i+2] += v[2];
+            }
+          }
+        }
+      }
+    }
+  }
+  #pragma omp barrier
+  printf("OpenMP!! \nReal space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+}
 
 
 void Gaussian_Gridding_type1(double *H){
@@ -251,18 +313,10 @@ void Gaussian_Gridding_type2(double* H){
 }
 
 void FFT3D(double *H, complex<double> *odata){
-  long tt = clock();
   cufftHandle plan;
   cufftDoubleReal *data;
   cufftDoubleComplex *data1;
   int n[DIM] = {nx, ny, nz};
-  cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
-  cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
-  cudaMemcpy(data,H,nx*ny*nz*3*sizeof(cufftDoubleReal),cudaMemcpyHostToDevice);
-  if (cudaGetLastError() != cudaSuccess){
-    fprintf(stderr, "Cuda error: Failed to allocate\n");
-    return;
-  }
   /* Create a 3D FFT plan. */
   if (cufftPlanMany(&plan, DIM, n,
     NULL, 1, nx*ny*nz, // *inembed, istride, idist
@@ -271,6 +325,15 @@ void FFT3D(double *H, complex<double> *odata){
       fprintf(stderr, "CUFFT error: Plan creation failed");
       return;
   }
+  long tt = clock();
+  cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
+  cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+  cudaMemcpy(data,H,nx*ny*nz*3*sizeof(cufftDoubleReal),cudaMemcpyHostToDevice);
+  if (cudaGetLastError() != cudaSuccess){
+    fprintf(stderr, "Cuda error: Failed to allocate\n");
+    return;
+  }
+
   /* Use the CUFFT plan to transform the signal in place. */
   if (cufftExecD2Z(plan, data, data1) != CUFFT_SUCCESS){
     fprintf(stderr, "CUFFT error: ExecD2Z Forward failed");
@@ -288,7 +351,6 @@ void FFT3D(double *H, complex<double> *odata){
   return;
 }
 void IFFT3D(complex<double> *H, double *odata){
-  long tt = clock();
   cufftHandle plan;
   cufftDoubleReal *data;
   cufftDoubleComplex *data1;
@@ -308,6 +370,7 @@ void IFFT3D(complex<double> *H, double *odata){
     fprintf(stderr, "CUFFT error: Plan creation failed");
     return;
   }
+  long tt = clock();
   /* Use the CUFFT plan to transform the signal in place. */
   if (cufftExecZ2D(plan, data1, data) != CUFFT_SUCCESS){
     fprintf(stderr, "CUFFT error: ExecZ2D Reverse failed");

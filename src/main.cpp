@@ -3,17 +3,21 @@
 #include <ctime>
 #include <cstdio>
 #include <string>
+#include <iostream>
 #include "ewald.h"
 
 using namespace std;
 
 // nvcc -std=c++11 -O0 -g  main.cpp ewald.cu global.cpp -lcufft -o ewald
 // nvcc -std=c++11 -O3   main.cpp ewald.cu global.cpp -lcufft -o ewald
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
+  int num_threads = 1;
+  cout << "Please input num of threads(default=1): " << endl;
+	cin >> num_threads;
   long tt = clock();
   initialize();
-  realspace();
+  // realspace();
+  realspaceOMP(num_threads);
   kspace();
   selfcontribution();
   writeout();

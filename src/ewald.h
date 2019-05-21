@@ -6,6 +6,7 @@ using namespace std;
 
 void initialize();
 void realspace();
+void realspaceOMP(int num_threads);
 void kspace();
 void selfcontribution();
 void writeout();
