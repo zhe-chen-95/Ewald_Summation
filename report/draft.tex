@@ -169,4 +169,14 @@ The algorithm is conducted in the following way:
 
 \paragraph{Pseudo-code}
 
+\paragraph{Error estimation}
+For k-space, the error comes from two parts: the truncation error in the k-space and the quadrature error to get the velocity fields. With the given parameters  $L, M, \xi, P, m$, we have that the two error has the bound:
+\begin{align}
+E^F & \le C_F e^{-\frac{M^2 \pi^2}{4 L \xi^2}}, \quad C_F \approx 1 \\
+E^Q & \le  4 e^{- \frac{\pi^2 P^2}{2 m^2 L^2}} + \text{erfc} (m / \sqrt{2})
+\end{align}
+For the real space, the truncation error has the bound
+\begin{equation}
+E^R \le C_R (\xi + \frac{p_{\infty}}{\xi}) e^{-p_{\infty}^2 \xi^2}, \quad C_R \approx 0.1.
+\end{equation}
 \end{document}
