@@ -50,6 +50,40 @@ void initialize(){
 }
 
 
+void initialize_readinput(int N, int num_p, int P, double eta_in, 
+  int rp, double L, double xi_in){
+  srand((unsigned int) 100005);
+  nx = N;
+  ny = N;
+  nz = N;
+  Lx = L;
+  Ly = L;
+  Lz = L;
+  eta = eta_in;
+  xi = xi_in;
+  np = num_p;
+  px = P;
+  py = P;
+  pz = P;
+  repeat_x = rp;
+  repeat_y = rp;
+  repeat_z = rp;
+  grid = (double*)calloc(np*DIM,sizeof(double));
+  particle = (double*)calloc(np*DIM,sizeof(double));
+  strength = (double*)calloc(np*DIM,sizeof(double));
+  vel = (double*)calloc(np*DIM,sizeof(double));
+  for (int i = 0; i<np; i++){
+    particle[DIM*i+0] = rand()*1.0/RAND_MAX*Lx;
+    particle[DIM*i+1] = rand()*1.0/RAND_MAX*Ly;
+    particle[DIM*i+2] = rand()*1.0/RAND_MAX*Lz;
+    strength[DIM*i+0] = 1.0;
+    strength[DIM*i+1] = 1.0;
+    strength[DIM*i+2] = 1.0;
+  }
+  outputfile = "../results/vel2.txt";
+  cout << "System initialized! # of particles: " << np << '\n';
+}
+
 void realfunc(double x, double y, double z, double xi, double *st1, double *st2, double *v){
   double r2 = x*x + y*y + z*z;
   double r = sqrt(r2);
