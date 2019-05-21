@@ -66,20 +66,26 @@ $\xi$ is a positive constant known as the \textbf{Ewald parameter}.
 
 \section{Description of Algorithms}
 
-\begin{frame}{Compute $u^F$ by FFT}
-\begin{equation}
-\mathbf{u}^F (\mathbf{x}_m) = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) e^{-k^2/4\xi^2} \left(\sum_{n=1}^{N} \mathbf{f}_n e ^{i \mathbf{k} \cdot \mathbf{x}_n} \right)e ^{-i \mathbf{k} \cdot \mathbf{x}_m}
-\end{equation}
-is the combination of two steps of NuFFT (Non-uniform FFT).
-
-\textbf{Can be done efficiently by Gaussian Gridding \& FFT!}
+\begin{frame}{Acceleration \& parallelization}
 \begin{itemize}
-	\item \textbf{Gaussian Gridding}: \\
-	Compute $ \sum_{n=1}^N \mathbf{f}_n e^{-2 \xi^2 |\mathbf{x} - \mathbf{x}_n|_{\ast}^2 / \eta}$ \\
-	Can be accelerated with Greengard's trick \cite{Greengard2004} and  OpenMP!
-	\item \textbf{FFT}: \\
-	Can be done efficiently by CuFFT (GPU) / FFTW (CPU) !
+	\item Compute $u^F$ (k-space) by FFT \\
+	\begin{equation}
+	\mathbf{u}^F (\mathbf{x}_m) = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) e^{-k^2/4\xi^2} \left(\sum_{n=1}^{N} \mathbf{f}_n e ^{i \mathbf{k} \cdot \mathbf{x}_n} \right)e ^{-i \mathbf{k} \cdot \mathbf{x}_m}
+	\end{equation}
+	is the combination of two steps of NuFFT (Non-uniform FFT).
+	
+	\textbf{Can be done efficiently by Gaussian Gridding \& FFT!}
+	\begin{itemize}
+		\item \textbf{Gaussian Gridding}: \\
+		Compute $ \sum_{n=1}^N \mathbf{f}_n e^{-2 \xi^2 |\mathbf{x} - \mathbf{x}_n|_{\ast}^2 / \eta}$ \\
+		Can be accelerated with Greengard's trick \cite{Greengard2004} and  OpenMP!
+		\item \textbf{FFT}: \\
+		Can be done efficiently by CuFFT (GPU) / FFTW (CPU) !
+	\end{itemize}
+
+	\item Accelerate $u^R$ (real space) by OpenMP 
 \end{itemize}
+
 \end{frame}
 
 \begin{frame}{Important Parameters \& Error bound}
@@ -101,10 +107,24 @@ E^R & \le C_R (\frac{1}{\xi^2} + \frac{p_{\infty}}{\xi}) e^{-p_{\infty}^2 \xi^2}
 \end{frame}
 
 \section{Implementation \& results}
+
+\begin{frame}{Spectral convergence}
+The three type of error versus the corresponding parameter, \\
+all has \textbf{spectral convergence}!
+\begin{figure}[H]\centering
+	\includegraphics[width=.36\textwidth]{freq_error_vs_k}
+	\includegraphics[width=.36\textwidth]{qudrature_error_vs_P}
+	\includegraphics[width=.36\textwidth]{real_error_vs_r}
+\end{figure}
+\end{frame}
 \begin{frame}{Time Complexity \& Work load balance}
 The total computational cost of the method is
 \begin{equation}
-\underbrace{O(NP^3)}_{\text{Gaussian gridding}} + \underbrace{O(M^3 \log(M^3))}_{\text{FFT + iFFT}} + \underbrace{O(M^3)}_{\text{Scaling on k-space}} + \underbrace{O(N^2 p_{\infty}^3)}_{\text{Real space}}
+\underbrace{O(NP^3)}_{\text{Gaussian gridding}} + \underbrace{O(M^3 \log(M^3))}_{\text{FFT + iFFT}} + \underbrace{O(M^3)}_{\text{Scaling on k-space}} + \underbrace{O(N^2 p_{\infty}^3)}_{\text{Real space}} + \underbrace{O(N)}_{self}
+\end{equation}
+if no FFT acceleration, the cost is
+\begin{equation}
+\underbrace{O(N^2M^3)}_{k-space} + \underbrace{O(N^2 p_{\infty}^3)}_{\text{Real space}} + \underbrace{O(N)}_{self}
 \end{equation}
 \textbf{Ewald parameter $\xi$ trades off between real space and k-space!}
 \begin{itemize}

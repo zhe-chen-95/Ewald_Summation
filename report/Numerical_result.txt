@@ -1,0 +1,64 @@
+module load cuda10.0
+
+Weak scaling & Strong scaling on the OpenMP part
+
+Fixing 
+Lx = Ly = Lz = 1;
+nx = ny = nz = 32;
+Choose
+xi = 10; m = 8; P = 24; pr = 2; eta = 0.87891;
+
+Weak scaling:
+np nthread time_real time_Gridding
+256   1 
+512   4
+1024  16
+2048  32
+
+Strong scaling:
+np nthread time_real time_Gridding
+2048 1
+2048 4
+2048 16
+2048 32
+
+
+Setting 8 threads:
+see the total time complexity
+
+Fixing 
+Lx = Ly = Lz = 1;
+nx = ny = nz = 32;
+Choose
+xi = 10; m = 8; P = 24; pr = 2; eta = 0.87891;
+
+Let np from 16 to 1024:
+np  time_total time_real time_Gridding time_FFT time_kspace time_self
+16
+32
+64
+128
+256
+512
+1024
+
+
+Speed up
+np speed_ratio_real speed_ratio_gridding speed_ratio_fft
+16
+32
+64
+128
+256
+
+
+Fixing h = L / n = 1 / 32; 
+Choose
+xi = 12; m = 8; P = 24; pr = 2; eta = 1.2656;
+Let np from 16 to 1024:
+np  L   nx  time_total time_real time_Gridding time_FFT time_kspace time_self
+16  1   32
+54  1.5 48
+128 2   64
+250 2.5 80
+432 3   96
