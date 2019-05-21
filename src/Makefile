@@ -9,7 +9,7 @@ TARGETS = $(basename $(wildcard *.cu *.cpp))
 all : main
 
 main:main.cpp *.h *.cu
-	$(CXX) $(CXXFLAGS) -Xcompiler "-O3 -march=native -fopenmp" $< $(LIBS) ewald.cu global.cpp -lcufft -o $@
+	$(CXX) $(CXXFLAGS) -Xcompiler "-O3 -march=native -fopenmp" $< $(LIBS) ewald.cu global.cpp -lcufft -lfftw3 -o $@
 
 clean:
 	-$(RM) $(TARGETS) *~

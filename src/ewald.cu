@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <omp.h>
 #include <chrono>
+#include "fftw3.h"
 #include "ewald.h"
 #include "utils.h"
 
@@ -462,7 +463,7 @@ void Gaussian_Gridding_type2(double* H){
   return;
 }
 
-void FFT3D(double *H, complex<double> *odata){
+void FFT3DGPU(double *H, complex<double> *odata){
   cufftHandle plan;
   cufftDoubleReal *data;
   cufftDoubleComplex *data1;
@@ -504,7 +505,7 @@ void FFT3D(double *H, complex<double> *odata){
   printf("FFT finished with %f(s)\n",(tt.toc()));
   return;
 }
-void IFFT3D(complex<double> *H, double *odata){
+void IFFT3DGPU(complex<double> *H, double *odata){
   cufftHandle plan;
   cufftDoubleReal *data;
   cufftDoubleComplex *data1;
@@ -553,6 +554,70 @@ void IFFT3D(complex<double> *H, double *odata){
   return;
 }
 
+void FFT3D(double *H, complex<double> *odata){
+  fftw_complex *out;
+  double *in;
+  fftw_plan p;
+  Timer tt;
+  tt.tic();
+  out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nx*ny*(nz/2+1));
+  in = (double*) fftw_malloc(sizeof(double) * nx*ny*(nz));
+  p = fftw_plan_dft_r2c_3d(nx, ny, nz, in, out, FFTW_ESTIMATE);
+
+  memcpy(in, &(H[0*nx*ny*(nz)]), sizeof(double)*nx*ny*(nz));
+  fftw_execute(p); /* repeat as needed */
+  memcpy(&(odata[0*nx*ny*(nz/2+1)]), out, sizeof(complex<double>)*nx*ny*(nz/2+1));
+
+  memcpy(in, &(H[1*nx*ny*(nz)]), sizeof(double)*nx*ny*(nz));
+  fftw_execute(p); /* repeat as needed */
+  memcpy(&(odata[1*nx*ny*(nz/2+1)]), out, sizeof(complex<double>)*nx*ny*(nz/2+1));
+
+  memcpy(in, &(H[2*nx*ny*(nz)]), sizeof(double)*nx*ny*(nz));
+  fftw_execute(p); /* repeat as needed */
+  memcpy(&(odata[2*nx*ny*(nz/2+1)]), out, sizeof(complex<double>)*nx*ny*(nz/2+1));
+  printf("FFTW finished with %f(s)\n",(tt.toc()));
+  fftw_destroy_plan(p);
+  fftw_free(in); fftw_free(out);
+  return;
+}
+
+void IFFT3D(complex<double> *H, double *odata){
+  fftw_complex *in;
+  double *out;
+  fftw_plan p;
+  Timer tt;
+  tt.tic();
+  in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nx*ny*(nz/2+1));
+  out = (double*) fftw_malloc(sizeof(double) * nx*ny*(nz));
+  p = fftw_plan_dft_c2r_3d(nx, ny, nz, in, out, FFTW_ESTIMATE);
+
+  memcpy(in, &(H[0*nx*ny*(nz/2+1)]), sizeof(complex<double>)*nx*ny*(nz/2+1));
+  fftw_execute(p); /* repeat as needed */
+  memcpy(&(odata[0*nx*ny*(nz)]), out, sizeof(double)*nx*ny*(nz));
+
+  memcpy(in, &(H[1*nx*ny*(nz/2+1)]), sizeof(complex<double>)*nx*ny*(nz/2+1));
+  fftw_execute(p); /* repeat as needed */
+  memcpy(&(odata[1*nx*ny*(nz)]), out, sizeof(double)*nx*ny*(nz));
+
+  memcpy(in, &(H[2*nx*ny*(nz/2+1)]), sizeof(complex<double>)*nx*ny*(nz/2+1));
+  fftw_execute(p); /* repeat as needed */
+  memcpy(&(odata[2*nx*ny*(nz)]), out, sizeof(double)*nx*ny*(nz));
+
+  printf("IFFTW finished with %f(s)\n",(tt.toc()));
+  for (int idim = 0; idim<3; idim++){
+    for (int i = 0; i<nx; i++){
+      for (int j = 0; j<ny; j++){
+        for (int k = 0; k<nz; k++){
+          odata[idim*(nx*ny*nz)+i*(ny*nz)+j*nz+k]/=(nx*ny*nz);
+        }
+      }
+    }
+  }
+  fftw_destroy_plan(p);
+  fftw_free(in); fftw_free(out);
+  return;
+}
+
 void kspaceParallel(){
   Timer tt;
   tt.tic();
@@ -561,7 +626,7 @@ void kspaceParallel(){
   Gaussian_Gridding_type1_OMP(Hx);
   complex<double> *Hx_hat;
   Hx_hat = (complex<double>*)malloc(sizeof(complex<double>)*nx*ny*(nz/2+1)*3);
-  FFT3D(Hx, Hx_hat);
+  FFT3DGPU(Hx, Hx_hat);
   complex<double> Hx_tilde[3*(nx)*(ny)*(nz/2+1)];
   double kx, ky, kz, k2, e1;
   double kx0=2*M_PI/Lx, ky0=2*M_PI/Ly, kz0=2*M_PI/Lz;
@@ -614,7 +679,7 @@ void kspaceParallel(){
       }
     }
   }
-  IFFT3D(Hx_tilde, Hx);
+  IFFT3DGPU(Hx_tilde, Hx);
   Gaussian_Gridding_type2_OMP(Hx);
   free(Hx);
   free(Hx_hat);
