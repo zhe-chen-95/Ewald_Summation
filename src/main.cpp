@@ -15,12 +15,20 @@ int main(int argc, char* argv[]){
   cout << "Please input num of threads(default=1): " << endl;
 	cin >> num_threads;
   long tt = clock();
+  cout << "\n---------------initialize---------------" << endl;
   initialize();
-  // realspace();
+  cout << "\n---------------Real Space---------------" << endl;
+  realspace();
+  cout << "\n---------------Real Space OMP---------------" << endl;
   realspaceOMP(num_threads);
+  cout << "\n---------------K-Space---------------" << endl;
   kspace();
+  cout << "\n---------------K-Space Parallel---------------" << endl;
+  kspaceParallel();
+  cout << "\n---------------Self Contribution---------------" << endl;
   selfcontribution();
   writeout();
+  cout << "\n---------------In Total---------------" << endl;
   printf("Total time is %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
   return 0;
 }

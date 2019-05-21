@@ -8,24 +8,27 @@
 #include <cstdio>
 #include <stdlib.h>
 #include <omp.h>
+#include <chrono>
 #include "ewald.h"
+#include "utils.h"
 
 using namespace std;
+using namespace chrono;
 
 void initialize(){
   srand((unsigned int) 100005);
-  nx = 20;
-  ny = 20;
-  nz = 20;
+  nx = 64;
+  ny = 64;
+  nz = 64;
   Lx = 2.0;
   Ly = 2.0;
   Lz = 2.0;
   eta = 1.15;
-  xi = 10;
-  np = 16;
-  px = 8;
-  py = 8;
-  pz = 8;
+  xi = 12;
+  np = 2048;
+  px = 24;
+  py = 24;
+  pz = 24;
   repeat_x = 2;
   repeat_y = 2;
   repeat_z = 2;
@@ -88,7 +91,8 @@ void realfuncOMP(double x, double y, double z, double xi, double *st, double *v)
 void realspace(){
   double rx, ry, rz;
   double v[6];
-  long tt = clock();
+  Timer tt;
+  tt.tic();
   for (int i = 0; i < np; i++){
     for (int j = i+1; j < np; j++){
       for (int px = -repeat_x; px < repeat_x; px++){
@@ -127,7 +131,7 @@ void realspace(){
       }
     }
   }
-  printf("Real space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Real space part finished with %f(s)\n",tt.toc());
 }
 
 
@@ -139,10 +143,13 @@ void realspaceOMP(int num_threads){
 	cout << "Use " << num_threads << " threads" << endl;
 	#endif
   double rx, ry, rz;
-  double v[3];
-  long tt = clock();
-  #pragma omp parallel for
+  double tt = omp_get_wtime();
+  #pragma omp parallel private(rx,ry,rz)
+  {
+  #pragma omp for
   for (int i = 0; i < np; i++){
+    // printf("i=%d, from thread = %d\n", i, omp_get_thread_num());
+    double v[3];
     for (int j = 0; j < np; j++){
       for (int px = -repeat_x; px < repeat_x; px++){
         for (int py = -repeat_y; py < repeat_y; py++){
@@ -172,13 +179,14 @@ void realspaceOMP(int num_threads){
       }
     }
   }
+  }
   #pragma omp barrier
-  printf("OpenMP!! \nReal space part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("OpenMP!! \nReal space part finished with %f(s)\n",(omp_get_wtime()-tt));
 }
 
 
-void Gaussian_Gridding_type1(double *H){
-  long tt = clock();
+void Gaussian_Gridding_type1_OMP(double *H){
+  double tt = omp_get_wtime();
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
   int ig, jg, kg;
@@ -225,7 +233,78 @@ void Gaussian_Gridding_type1(double *H){
       E2_zl[k+pz-1] = pow(E2_z, k);
     }
     V0 = E1_x * E1_y * E1_z;
+    #pragma omp parallel for schedule(dynamic, 1) private(Vx, Vy, Vz, ig, jg, kg)
     for (long i = - px+1; i <= px; i++){
+      // printf("i=%d, from thread = %d\n", i, omp_get_thread_num());
+      Vx = V0 * E2_xl[i+px-1] * E3_x[abs(i)];
+      for (long j = -py+1; j <= py; j++){
+        Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
+        for (long k = -pz+1; k <= pz; k++){
+          Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
+          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          for (long m = 0; m < DIM; m++){
+            H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
+          }
+        }
+      }
+    }
+    #pragma omp barrier
+  }
+  printf("OpenMP Gaussian_Gridding_type1 finished with %f(s)\n",(omp_get_wtime()-tt));
+  free(E3_x);free(E3_y);free(E3_z);
+  free(E2_xl);free(E2_yl);free(E2_zl);
+  return;
+}
+
+void Gaussian_Gridding_type1(double *H){
+  double tt = omp_get_wtime();
+  double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
+  double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
+  int ig, jg, kg;
+  double a =  2 * xi * xi / eta;
+  double xp, yp, zp, xp_o, yp_o, zp_o;
+  int ip, jp, kp;
+  double* E3_x = (double*) calloc(px+1, sizeof(double));
+  double* E3_y = (double*) calloc(py+1, sizeof(double));
+  double* E3_z = (double*) calloc(pz+1, sizeof(double));
+  double E1_x, E1_y, E1_z, E2_x, E2_y, E2_z;
+  double* E2_xl = (double*) calloc(2*px, sizeof(double));
+  double* E2_yl = (double*) calloc(2*py, sizeof(double));
+  double* E2_zl = (double*) calloc(2*pz, sizeof(double));
+  double V0, Vx, Vy, Vz;
+  for (long i = 0; i <= px; i++) {
+    E3_x[i] = exp(-a*i*i*hx_sq);
+  }
+  for (long i = 0; i <= py; i++) {
+    E3_y[i] = exp(-a*i*i*hy_sq);
+  }
+  for (long i = 0; i <= pz; i++) {
+    E3_z[i] = exp(-a*i*i*hz_sq);
+  }
+  for (long n = 0; n < np; n++){
+    xp = particle[DIM*n+0];
+    yp = particle[DIM*n+1];
+    zp = particle[DIM*n+2];
+    ip = xp/hx; jp = yp/hy; kp = zp/hz;
+    xp_o = xp - ip*hx; yp_o = yp - jp*hy; zp_o = zp - kp*hz;
+    E1_x = exp(-a*xp_o*xp_o);
+    E1_y = exp(-a*yp_o*yp_o);
+    E1_z = exp(-a*zp_o*zp_o);
+    E2_x = exp(2*a*xp_o*hx);
+    E2_y = exp(2*a*yp_o*hy);
+    E2_z = exp(2*a*zp_o*hz);
+    for (long i = - px+1; i <= px; i++) {
+      E2_xl[i+px-1] = pow(E2_x, i);
+    }
+    for (long j = -py+1; j <= py; j++) {
+      E2_yl[j+py-1] = pow(E2_y, j);
+    }
+    for (long k = -pz+1; k <= pz; k++) {
+      E2_zl[k+pz-1] = pow(E2_z, k);
+    }
+    V0 = E1_x * E1_y * E1_z;
+    for (long i = - px+1; i <= px; i++){
+      // printf("i=%d, from thread = %d\n", i, omp_get_thread_num());
       Vx = V0 * E2_xl[i+px-1] * E3_x[abs(i)];
       for (long j = -py+1; j <= py; j++){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
@@ -239,14 +318,84 @@ void Gaussian_Gridding_type1(double *H){
       }
     }
   }
-  printf("Gaussian_Gridding_type1 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Gaussian_Gridding_type1 finished with %f(s)\n",(omp_get_wtime()-tt));
   free(E3_x);free(E3_y);free(E3_z);
   free(E2_xl);free(E2_yl);free(E2_zl);
   return;
 }
 
+void Gaussian_Gridding_type2_OMP(double* H){
+  double tt = omp_get_wtime();
+  double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
+  double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
+  double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
+  int ig, jg, kg;
+  double a = 2 * xi * xi / eta;
+  double xp, yp, zp, xp_o, yp_o, zp_o;
+  int ip, jp, kp;
+  double* E3_x = (double*) calloc(px+1, sizeof(double));
+  double* E3_y = (double*) calloc(py+1, sizeof(double));
+  double* E3_z = (double*) calloc(pz+1, sizeof(double));
+  double E1_x, E1_y, E1_z, E2_x, E2_y, E2_z;
+  double V0, Vx, Vy, Vz;
+  for (long i = 0; i <= px; i++) {
+    E3_x[i] = exp(-a*i*i*hx_sq);
+  }
+  for (long i = 0; i <= py; i++) {
+    E3_y[i] = exp(-a*i*i*hy_sq);
+  }
+  for (long i = 0; i <= pz; i++) {
+    E3_z[i] = exp(-a*i*i*hz_sq);
+  }
+  #pragma omp parallel for private(xp, yp, zp, ip, jp, kp, xp_o, yp_o, zp_o, E1_x, E1_y, E1_z, E2_x, E2_y, E2_z,V0, Vx, Vy, Vz, ig, jg, kg)
+  for (long n = 0; n < np; n++){
+    double* E2_xl = (double*) calloc(2*px, sizeof(double));
+    double* E2_yl = (double*) calloc(2*py, sizeof(double));
+    double* E2_zl = (double*) calloc(2*pz, sizeof(double));
+    xp = particle[DIM*n+0];
+    yp = particle[DIM*n+1];
+    zp = particle[DIM*n+2];
+    ip = xp/hx; jp = yp/hy; kp = zp/hz;
+    xp_o = xp - ip*hx; yp_o = yp - jp*hy; zp_o = zp - kp*hz;
+    E1_x = exp(-a*xp_o*xp_o);
+    E1_y = exp(-a*yp_o*yp_o);
+    E1_z = exp(-a*zp_o*zp_o);
+    E2_x = exp(2*a*xp_o*hx);
+    E2_y = exp(2*a*yp_o*hy);
+    E2_z = exp(2*a*zp_o*hz);
+    for (long i = - px+1; i <= px; i++) {
+      E2_xl[i+px-1] = pow(E2_x, i);
+    }
+    for (long j = -py+1; j <= py; j++) {
+      E2_yl[j+py-1] = pow(E2_y, j);
+    }
+    for (long k = -pz+1; k <= pz; k++) {
+      E2_zl[k+pz-1] = pow(E2_z, k);
+    }
+    V0 = E1_x * E1_y * E1_z;
+    for (long i = - px+1; i <= px; i++){
+      Vx = V0 * E2_xl[i+px-1] * E3_x[abs(i)];
+      for (long j = -py+1; j <= py; j++){
+        Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
+        for (long k = -pz+1; k <= pz; k++){
+          Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
+          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          for (long m = 0; m < DIM; m++){
+            vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
+          }
+        }
+      }
+    }
+    free(E2_xl);free(E2_yl);free(E2_zl);
+  }
+  #pragma omp barrier
+  printf("OpenMP Gaussian_Gridding_type2 finished with %f(s)\n",(omp_get_wtime()-tt));
+  free(E3_x);free(E3_y);free(E3_z);
+  return;
+}
+
 void Gaussian_Gridding_type2(double* H){
-  long tt = clock();
+  double tt = omp_get_wtime();
   double hx = Lx / nx, hy = Ly / ny, hz = Lz / nz;
   double scale_factor = hx*hy*hz * pow(2*xi*xi/(M_PI*eta), 1.5);
   double hx_sq = hx * hx, hy_sq = hy * hy, hz_sq = hz * hz;
@@ -307,9 +456,10 @@ void Gaussian_Gridding_type2(double* H){
       }
     }
   }
-  printf("Gaussian_Gridding_type2 finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Gaussian_Gridding_type2 finished with %f(s)\n",(omp_get_wtime()-tt));
   free(E3_x);free(E3_y);free(E3_z);
   free(E2_xl);free(E2_yl);free(E2_zl);
+  return;
 }
 
 void FFT3D(double *H, complex<double> *odata){
@@ -325,10 +475,13 @@ void FFT3D(double *H, complex<double> *odata){
       fprintf(stderr, "CUFFT error: Plan creation failed");
       return;
   }
-  long tt = clock();
+  Timer tt, tt1;
+  tt.tic();
   cudaMalloc((void**)&data, sizeof(cufftDoubleReal)*nx*ny*nz*3);
   cudaMalloc((void**)&data1, sizeof(cufftDoubleComplex)*nx*ny*(nz/2+1)*3);
+  tt1.tic();
   cudaMemcpy(data,H,nx*ny*nz*3*sizeof(cufftDoubleReal),cudaMemcpyHostToDevice);
+  printf("Memcpy from Host To Device %f(s)\n",(tt1.toc()));
   if (cudaGetLastError() != cudaSuccess){
     fprintf(stderr, "Cuda error: Failed to allocate\n");
     return;
@@ -347,7 +500,8 @@ void FFT3D(double *H, complex<double> *odata){
   cufftDestroy(plan);
   cudaFree(data);
   cudaFree(data1);
-  printf("FFT finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  cudaDeviceSynchronize();
+  printf("FFT finished with %f(s)\n",(tt.toc()));
   return;
 }
 void IFFT3D(complex<double> *H, double *odata){
@@ -370,7 +524,8 @@ void IFFT3D(complex<double> *H, double *odata){
     fprintf(stderr, "CUFFT error: Plan creation failed");
     return;
   }
-  long tt = clock();
+  Timer tt;
+  tt.tic();
   /* Use the CUFFT plan to transform the signal in place. */
   if (cufftExecZ2D(plan, data1, data) != CUFFT_SUCCESS){
     fprintf(stderr, "CUFFT error: ExecZ2D Reverse failed");
@@ -393,12 +548,82 @@ void IFFT3D(complex<double> *H, double *odata){
       }
     }
   }
-  printf("IFFT finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  cudaDeviceSynchronize();
+  printf("IFFT finished with %f(s)\n",(tt.toc()));
   return;
 }
 
+void kspaceParallel(){
+  Timer tt;
+  tt.tic();
+  double *Hx;
+  Hx = (double*)malloc(sizeof(double)*nx*ny*(nz)*3);
+  Gaussian_Gridding_type1_OMP(Hx);
+  complex<double> *Hx_hat;
+  Hx_hat = (complex<double>*)malloc(sizeof(complex<double>)*nx*ny*(nz/2+1)*3);
+  FFT3D(Hx, Hx_hat);
+  complex<double> Hx_tilde[3*(nx)*(ny)*(nz/2+1)];
+  double kx, ky, kz, k2, e1;
+  double kx0=2*M_PI/Lx, ky0=2*M_PI/Ly, kz0=2*M_PI/Lz;
+  for (int i = 0; i<nx; i++){
+    for (int j = 0; j<ny; j++){
+      for (int k = 0; k<nz/2+1; k++){
+        if (i==0 && j==0 && k==0){
+          Hx_tilde[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]={0,0};
+          Hx_tilde[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]={0,0};
+          Hx_tilde[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]={0,0};
+          continue;
+        }
+        if (i<nx/2){
+          kx = i*kx0;
+        }
+        else{
+          kx = (i-nx)*kx0;
+        }
+        if (j<ny/2){
+          ky = j*ky0;
+        }
+        else{
+          ky = (j-ny)*ky0;
+        }
+        if (k<nz/2){
+          kz = k*kz0;
+        }
+        else{
+          kz = (k-nz)*kz0;
+        }
+        k2 = kx*kx + ky*ky + kz*kz;
+        e1 = exp(-(1-eta)*k2/4/xi/xi);
+        Hx_tilde[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k] = e1*
+        8*M_PI*(1+k2/4/xi/xi)/k2/k2*
+        ((k2-kx*kx)*Hx_hat[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-kx*ky)*Hx_hat[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-kx*kz)*Hx_hat[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]);
+
+        Hx_tilde[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k] = e1*
+        8*M_PI*(1+k2/4/xi/xi)/k2/k2*
+        ((-ky*kx)*Hx_hat[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (k2-ky*ky)*Hx_hat[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-ky*kz)*Hx_hat[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]);
+
+        Hx_tilde[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k] = e1*
+        8*M_PI*(1+k2/4/xi/xi)/k2/k2*
+        ((-kz*kx)*Hx_hat[0*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (-kz*ky)*Hx_hat[1*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]+
+        (k2-kz*kz)*Hx_hat[2*(nx)*(ny)*(nz/2+1)+i*(ny)*(nz/2+1)+j*(nz/2+1)+k]);
+      }
+    }
+  }
+  IFFT3D(Hx_tilde, Hx);
+  Gaussian_Gridding_type2_OMP(Hx);
+  free(Hx);
+  free(Hx_hat);
+  printf("k-pace part finished with %f(s)\n",(tt.toc()));
+}
+
 void kspace(){
-  long tt = clock();
+  Timer tt;
+  tt.tic();
   double *Hx;
   Hx = (double*)malloc(sizeof(double)*nx*ny*(nz)*3);
   Gaussian_Gridding_type1(Hx);
@@ -461,18 +686,19 @@ void kspace(){
   Gaussian_Gridding_type2(Hx);
   free(Hx);
   free(Hx_hat);
-  printf("k-pace part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("k-pace part finished with %f(s)\n",(tt.toc()));
 }
 
 void selfcontribution(){
-  long tt = clock();
+  Timer tt;
+  tt.tic();
   double tmp = (4*xi)/sqrt(M_PI);
   for (long i = 0; i < np; i++) {
     vel[DIM*i+0] -= tmp*strength[DIM*i+0];
     vel[DIM*i+1] -= tmp*strength[DIM*i+1];
     vel[DIM*i+2] -= tmp*strength[DIM*i+2];
   }
-  printf("Self Contribution part finished with %f(s)\n",(clock()-tt)*1.0/CLOCKS_PER_SEC);
+  printf("Self Contribution part finished with %f(s)\n",(tt.toc()));
 
 }
 

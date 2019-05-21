@@ -8,6 +8,7 @@ void initialize();
 void realspace();
 void realspaceOMP(int num_threads);
 void kspace();
+void kspaceParallel();
 void selfcontribution();
 void writeout();
 void free();
