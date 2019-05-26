@@ -18,9 +18,9 @@ The goal of this project is to develop a CUDA-based gpu-parallel libary to imple
 
 ### Documents:
 
-1. [slides]{https://github.com/CecilMartin/Ewald_Summation/blob/master/report/slides.pdf}
+1. [slides](https://github.com/CecilMartin/Ewald_Summation/blob/master/report/slides.pdf)
 
-2. [report]{https://github.com/CecilMartin/Ewald_Summation/blob/master/report/draft.pdf}
+2. [report](https://github.com/CecilMartin/Ewald_Summation/blob/master/report/draft.pdf)
 
 
 ### GPU library for NuFFT
