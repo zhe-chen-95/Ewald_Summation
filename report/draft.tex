@@ -1,0 +1,256 @@
+% !TeX spellcheck = en_GB
+\documentclass{article}[12pt]
+
+\renewcommand{\baselinestretch}{1.3}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{enumerate}
+\usepackage{latexsym}
+\usepackage{mathrsfs}
+\usepackage{amsthm}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{color}
+\usepackage{subfig}
+\usepackage{float}
+\usepackage{color}
+\usepackage{titlesec}
+\usepackage{bm}
+\usepackage[colorlinks,linkcolor=blue,anchorcolor=green,citecolor=red]{hyperref}
+\usepackage[T1]{fontenc}
+\renewcommand{\rmdefault}{ptm}
+\usepackage{charter}
+\usepackage{fancyhdr}
+\usepackage{amscd}
+
+\usepackage{caption}
+\usepackage{algorithm} %format of the algorithm
+\usepackage{algorithmic} %format of the algorithm
+
+
+\makeatletter
+\@addtoreset{equation}{section}
+\makeatother
+
+\makeatletter % `@' now normal "letter"
+\@addtoreset{equation}{section}
+\makeatother  % `@' is restored as "non-letter"
+\renewcommand\theequation{\oldstylenums{\thesection}%
+	.\oldstylenums{\arabic{equation}}}
+
+\usepackage{geometry}
+\geometry{left=4cm,right=4cm,top=4cm,bottom=4cm}
+
+\usepackage{listings}
+\usepackage{setspace}
+
+\begin{document}
+
+\title{HPC Final Project}
+
+\date{\today}
+
+\maketitle
+
+\section{Algorithm description}
+
+\paragraph{Periodic Stokes potentials}
+Given the Stokes equation, the Green's function for the velocity field for the free-space problem is given by the Oseen-Burgers tensor:
+\begin{equation}
+\mathbf{S}(\mathbf{x}) = \frac{\mathbf{1}}{|\mathbf{x}|} + \frac{\mathbf{x x}}{|\mathbf{x}|^3}.
+\end{equation}
+Now we consider a system of $N$ point sources at location $\mathbf{x}_n$ with strength $\mathbf{f}_n$, in the periodic setting, the velocity field is given as
+\begin{equation}
+\mathbf{u}(\mathbf{x}) = \sum_{n=1}^{N} \sum_{\mathbf{p}} \mathbf{S}(\mathbf{x - x_n + p}) \mathbf{f}_n, \label{eq:stokes_velocity_field}
+\end{equation}     
+where $\mathbf{p}$ form the discrete set $\{[iL_x \ jL_y \  kL_z]:(i, j, k) \in \mathbb{Z}^3\}$ and $L_x, L_y$ and $L_z$ are the periodic lengths in the three directions.
+
+\paragraph{Ewald summation for Stokes}
+Applying the idea of Ewald decomposition, the Eq.\eqref{eq:stokes_velocity_field} can be split as following:
+\begin{equation}
+\mathbf{u}(\mathbf{x}_m) = \sum_{n=1}^{N} \sum_{\mathbf{p}} \mathbf{A}(\xi, \mathbf{x_m - x_n + p}) \mathbf{f}_n + \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) e^{-k^2/4\xi^2}\sum_{n=1}^{N} \mathbf{f}_n e ^{-i \mathbf{k} \cdot (\mathbf{x}_m - \mathbf{x}_n)} - \mathbf{u}_{\text{self}} \label{eq:ewald_sum}
+\end{equation} 
+where $\mathbf{k} \in \{[2 \pi k_i / L_i]: k_i \in \mathbb{Z}, i=1,2,3\}, k = |\mathbf{k}|, V=L_x L_y L_z$ and $\xi$ is a positive constant known as the Ewald parameter. From the Eq.\eqref{eq:ewald_sum} we can see that the velocity field has been split into three parts: one sum in real space ($\mathbf{u}^R$), one sum in frequency domain ($\mathbf{u}^F$) and a self-contribution $\mathbf{u}_{\text{self}}$.
+
+From the formulation by Hasimoto, we have
+\begin{equation}
+\mathbf{A}(\xi, \mathbf{x}) = 2 \left(\frac{\xi e^{-\xi^2 r^2}}{\sqrt{\pi} r^2} + \frac{\text{erfc}(\xi r)}{2 r^3}\right) (r^2 \mathbf{I} + \mathbf{x x}) - \frac{4 \xi}{\sqrt{\pi}} e^{-\xi^2 r^2} \mathbf{I}
+\end{equation}
+with $r = |\mathbf{X}|$ and
+\begin{equation}
+B(\xi, \mathbf{k}) = 8 \pi \left(1 + \frac{k^2}{4 \xi^2}\right) \frac{1}{k^4}(k^2 \mathbf{I} - \mathbf{k k})
+\end{equation}
+and
+\begin{equation}
+\mathbf{u}_{\text{self}}(\mathbf{x}_m) = \frac{4 \xi}{\sqrt{\pi}} \mathbf{f}_m
+\end{equation}
+
+\paragraph{Nonuniform fast Fourier transform}
+The nonuniform discrete Fourier transform (NuFFT) of type 1 and 2 is defined as:
+\begin{equation}
+F(\mathbf{k}) = \frac{1}{N} \sum_{n=1}^N f_j e^{-i \mathbf{k} \cdot \mathbf{x}_n}
+\end{equation}
+and
+\begin{equation}
+f(x_n) = \sum_{\mathbf{k}} F(\mathbf{k}) e^{i \mathbf{k} \cdot \mathbf{x}_n}
+\end{equation}
+They can be computed efficiently by fast Gaussian gridding and FFT, we will introduce it in the later part.
+
+\paragraph{Fast summation method in frequency domain}
+Now we focus on the frequency domain part of the summation based on NuFFT:
+\begin{equation}
+\mathbf{u}^F (\mathbf{x}_m) = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) e^{-k^2/4\xi^2}\sum_{n=1}^{N} \mathbf{f}_n e ^{-i \mathbf{k} \cdot (\mathbf{x}_m - \mathbf{x}_n)}
+\end{equation}
+The formula can be split into 
+\begin{equation}
+\mathbf{u}^F (\mathbf{x}_m) = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) e^{-k^2/4\xi^2} \left(\sum_{n=1}^{N} \mathbf{f}_n e ^{i \mathbf{k} \cdot \mathbf{x}_n} \right)e ^{-i \mathbf{k} \cdot \mathbf{x}_m}
+\end{equation}
+which is one NuFFT (type 1) combined with scaling and another NuFFT (type 2).
+
+\paragraph{Reformulation by Gaussian Gridding \& FFT} 
+The basic idea is convolution by the Gaussian... leave it for later.
+
+For NuFFT of type 1, introducing a free parameter $\eta$, we have that
+\begin{equation}
+\sum_{n=1}^{N} \mathbf{f}_n e ^{i \mathbf{k} \cdot \mathbf{x}_m }  = e^{\eta k^2 / 8 \xi^2} \sum_{n=1}^{N} \mathbf{f}_n e^{-\eta k^2 / 8 \xi^2} e ^{-i (\mathbf{-k}) \cdot \mathbf{x}_m }  := e^{\eta k^2 / 8 \xi^2} \hat{H}_{\mathbf{-k}}
+\end{equation}
+while $\hat{H}_{\mathbf{k}}$ is the Fourier transform of 
+\begin{equation}
+H(\mathbf{x}) = \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2}  \sum_{n=1}^N \mathbf{f}_n e^{-2 \xi^2 |\mathbf{x} - \mathbf{x}_n|_{\ast}^2 / \eta} \label{eq:gaussian_gridding_1}
+\end{equation}
+where $|\cdot|_{\ast}$ denotes distance to closest periodic image. 
+
+For the part of type 2 NuFFT, under the same parameter $\eta$, first we can simplify 
+\begin{align}
+\mathbf{u}^F (\mathbf{x}_m) & = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) e^{-k^2/4\xi^2} e^{\eta k^2 / 8 \xi^2} \hat{H}_{\mathbf{-k}} e ^{-i \mathbf{k} \cdot \mathbf{x}_m} \\
+%& =  \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{k}) \hat{H}_{\mathbf{-k}} e^{- \eta k^2 / 8 \xi^2}  e ^{i (\mathbf{-k}) \cdot \mathbf{x}_n} \\
+%& = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \mathbf{B}(\xi, \mathbf{-k}) \hat{H}_{\mathbf{k}} e^{- \eta k^2 / 8 \xi^2}  e ^{i \mathbf{k} \cdot \mathbf{x}_n} \\
+& = \frac{1}{V} \sum_{\mathbf{k} \neq 0} \hat{\tilde{H}}_{\mathbf{k}} e^{- \eta k^2 / 8 \xi^2}  e ^{i \mathbf{k} \cdot \mathbf{x}_m} 
+\end{align}
+with 
+\begin{equation}
+\hat{\tilde{H}}_{\mathbf{k}} := \mathbf{B}(\xi, \mathbf{-k}) \hat{H}_{\mathbf{k}} e^{-(1-\eta)k^2 / 4\xi^2} \label{eq:hat_tilde_h_formula}
+\end{equation}
+Then we denote $\tilde{H}(\mathbf{x}_i)$ as the inverse Fourier transform of $
+\hat{\tilde{H}}_{\mathbf{k}}$.
+
+According to the convolution argument, we have that
+\begin{align}
+\mathbf{u}^F (\mathbf{x}_m) & =  \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2}  \int_{\Omega} \tilde{H}(\mathbf{x}) e^{-2 \xi^2 |\mathbf{x} - \mathbf{x}_m|_{\ast}^2 / \eta} \mathtt{d} \mathbf{x} \\
+& \approx \frac{V}{N_{\text{grid}}} \left(\frac{2 \xi^2}{\pi \eta}\right)^{3/2} \sum_{\mathbf{x}_{(i)} \ \text{in equi-space grid}} \tilde{H}(\mathbf{x}_{(i)}) e^{-2 \xi^2 |\mathbf{x}_{(i)} - \mathbf{x}_m|_{\ast}^2 / \eta} \label{eq:gaussian_gridding_2}
+\end{align}
+The approximation integral is spectrally accurate since the integrand is periodic.
+
+Now the only left problem is how to compute Eq.\eqref{eq:gaussian_gridding_1} and Eq.\eqref{eq:gaussian_gridding_2}. The formula is known as \textbf{Gaussian gridding}.
+
+\paragraph{Truncation error of Gaussian Gridding}
+Since the Gaussian function has the infinite support, we have to truncate the Gaussian function to get the numerical value. Denote the grid size of real space (in one dimension) is $h$ and number of grids in the support of truncated Gaussian as $P$, then the value of Gaussian at the truncated points is $e^{- \xi^2 P^2 h^2 / 2 \eta}$. Let 
+\begin{equation}
+\eta =  \left(\frac{P h \xi}{m} \right)^2 \label{eq:eta_formula}
+\end{equation}
+we know the Gaussian at the truncated points is $e^{-m^2/2}$.
+
+Moreover, we can bound the quadrature error from  Eq.\eqref{eq:gaussian_gridding_1} and Eq.\eqref{eq:gaussian_gridding_2} by
+\begin{equation}
+E^Q \le  4 e^{- \frac{\pi^2 P^2}{2 m^2 L^2}} + \text{erfc} (m / \sqrt{2}).
+\end{equation}
+\textbf{Note that by choosing the free parameter $\eta$ as Eq.\eqref{eq:eta_formula}, we can decouple the quadrature error with the Ewald parameter $\xi$, which makes it easier to determine the parameters.}
+
+\paragraph{Fast Gaussian Gridding and Parallelization} Denote $N$ as the number of particles and $M$ the number of layers in k-space, then if we compute Eq.\eqref{eq:gaussian_gridding_1} and Eq.\eqref{eq:gaussian_gridding_2} directly, the computation cost (each) is $NM^3$ exponential computation, $3NM^3$ multiplications and additions. Since exponential takes much more time than multiplication ($15 \sim 20$ time clocks than $1 \sim 2$ time clocks), a natural idea is to substitute exponential operation with multiplication. \textbf{The idea of fast Gaussian gridding is to pre-compute and store the exponential and only do necessary multiplications afterwards.}
+
+Roughly speaking, take 1D situation for example, we have that ($x_{(i)} = ih, x_n = \tilde{x}_n + jh, 0 \le \tilde{x}_n < h$)
+\begin{equation}
+e^{-\alpha|x_{(i)} - x_n|^2} = e^{-\alpha|ih - jh - \tilde{x}_n|^2} = e^{-\alpha ((i-j)h)^2} \left(e^{2 \alpha h \tilde{x}_n}\right)^i e^{-\alpha \tilde{x}_n^2}
+\end{equation}
+All $e^{-\alpha ((i-j)h)^2}, e^{2 \alpha h \tilde{x}_n}, e^{-\alpha \tilde{x}_n^2}$ can be precomputed with only $\mathbf{2(M+N)}$ exponential computations (also that much storage cost) and then we only need to do $2 NM$ more multiplications to get all $e^{-\alpha|x_{(i)} - x_n|^2}$. For 3D situation we need $\mathbf{6(M+N)}$ exponential computations and $2 NM^3$ more multiplications. \textbf{As long as the exponential takes significantly more time than multiplication, the fast Gaussian gridding will improve the performance and it will benefit more with higher dimension.}
+
+As for the parallelization, the parallelization of Eq.\eqref{eq:gaussian_gridding_2} is simple since we can compute the velocity filed $\mathbf{u}^F (\mathbf{x}_m)$ at each point source $\mathbf{x}_m$ separately , thus parallelly. Since usually we have a large number of source points and there's no communication between threads, it's a parallelization with high-efficiency.
+
+However, the parallelization of Eq.\eqref{eq:gaussian_gridding_1} is not that ideal since (almost) every source point contributes to the grid points and it will need great memory cost if we still parallelize on the source points. Thus \textit{instead we parallelize on the grid points to avoid the repeating IO for grid points.} To be more specific, for each source point we parallelize on the grid points that will be affected by the source (since we use a truncated Gaussian) and do the computation serially on the source points. We will see later it's not as efficient as the parallelization of Eq.\eqref{eq:gaussian_gridding_2}, but it did reduce the computation time with more cores.
+
+\paragraph{The Description of Algorithm}
+The algorithm is conducted in the following way:
+\begin{enumerate}[(1)]
+	\item Choose the free parameter $\xi$ and $\eta$ wisely and construct the uniform grid according to the problem.
+	\item Evaluate $H(\mathbf{x})$ on the grid according to Eq.\eqref{eq:gaussian_gridding_1} with fast Gaussian gridding.
+	\item Conduct FFT on $H(\mathbf{x})$ to get $\hat{H}_{\mathbf{k}}$.
+	\item Apply the scaling according to Eq.\eqref{eq:hat_tilde_h_formula} to get $\hat{\tilde{H}}_{\mathbf{k}}$.
+	\item Conduct iFFT on $\hat{\tilde{H}}_{\mathbf{k}}$ to get $\tilde{H}(\mathbf{x})$.
+	\item Evaluate the $\mathbf{u}^F (\mathbf{x}_m)$ according to Eq.\eqref{eq:gaussian_gridding_2} with fast Gaussian gridding.
+	\item Evaluate the $\mathbf{u}^R (\mathbf{x}_m)$ in real space and get the final result.
+\end{enumerate}
+
+\paragraph{Pseudo-code}
+
+\paragraph{Error estimation}
+\begin{align}
+E & = E^F + E^Q + E^R \\
+E^F & \le C_F e^{-\frac{M^2 \pi^2}{4 L \xi^2}} \quad  \text{(truncation of k-space)}\\
+E^R & \le C_R (\frac{1}{\xi^2} + \frac{p_{\infty}}{\xi}) e^{-p_{\infty}^2 \xi^2}. \quad \text{(truncation of real space)} \\
+E^Q & \le  4 e^{- \frac{\pi^2 P^2}{2 m^2 L^2}} + \text{erfc} (m / \sqrt{2}) \quad  \text{(quadrature)}
+\end{align}
+For k-space, the error comes from two parts: the truncation error in the k-space $E^F$ and the quadrature error $E^Q$ to get the velocity fields. With the given parameters  $L, M, \xi, P, m$, we have that the two error has the bound:
+\begin{align}
+E^F & \le C_F e^{-\frac{M^2 \pi^2}{4 L \xi^2}}, \quad C_F \approx 1 \\
+E^Q & \le  4 e^{- \frac{\pi^2 P^2}{2 m^2 L^2}} + \text{erfc} (m / \sqrt{2})
+\end{align}
+For the real space, the truncation error has the bound
+\begin{equation}
+E^R \le C_R (\xi + \frac{p_{\infty}}{\xi}) e^{-p_{\infty}^2 \xi^2}, \quad C_R \approx 0.1.
+\end{equation}
+We can see that all three parts of error decay exponentially with the corresponding parameter $E^F$ with $M$, $E^Q$ with $P$ and $E^R$ with $p_{\infty}$). It's also been shown numerically.
+
+\paragraph{Time complexity and speed up}
+The total computational cost of the method is
+\begin{equation}
+\underbrace{O(NP^3)}_{\text{Gaussian gridding}} + \underbrace{O(M^3 \log(M^3))}_{\text{FFT + iFFT}} + \underbrace{O(M^3)}_{\text{Scaling on k-space}} + \underbrace{O(N^2 p_{\infty}^3)}_{\text{Real space}} + \underbrace{O(N)}_{self}
+\end{equation}
+if no FFT acceleration, the cost is
+\begin{equation}
+\underbrace{O(N^2M^3)}_{k-space} + \underbrace{O(N^2 p_{\infty}^3)}_{\text{Real space}} + \underbrace{O(N)}_{self}
+\end{equation}
+\textbf{Ewald parameter $\xi$ trades off between real space and k-space!}
+\begin{itemize}
+	\item Larger $\xi \rightarrow$ larger $M$, smaller $p_{\infty}$.
+	\item Smaller $\xi \rightarrow$ smaller $M$, larger $p_{\infty}$.
+\end{itemize}
+How we choose the parameters:
+\begin{itemize}
+	\item \textbf{Balance the error} \\
+	\item \textbf{Balance the time}
+\end{itemize}
+
+\paragraph{Weak scaling result}
+
+\paragraph{Strong scaling result}
+
+\paragraph{Information about the project} 
+Link of the project: 
+
+\url{https://github.com/CecilMartin/Ewald_Summation}
+
+Team work:
+\begin{itemize}
+	\item Zhe Chen: Write codes, presentation
+	\item Guanchun Li:  Develop algorithm into pseudo-code, run codes, write slides
+	\item Together: Literature research
+\end{itemize}
+
+\begin{thebibliography}{0}
+	\bibitem{Greengard2004}
+	Greengard, Leslie, and June-Yub Lee. "Accelerating the nonuniform fast Fourier transform." SIAM review 46.3 (2004): 443-454.
+	\bibitem{Hasimoto1959}
+	Hasimoto, Hidenori. "On the periodic fundamental solutions of the Stokes equations and their application to viscous flow past a cubic array of spheres." Journal of Fluid Mechanics 5.2 (1959): 317-328.
+	\bibitem{Lindbo2010}
+	Lindbo, Dag, and Anna-Karin Tornberg. "Spectrally accurate fast summation for periodic Stokes potentials." Journal of Computational Physics 229.23 (2010): 8994-9010.
+	\bibitem{FFTW3}
+	Frigo, Matteo, and Steven G. Johnson. "The design and implementation of FFTW3." Proceedings of the IEEE 93.2 (2005): 216-231.
+	\bibitem{cufft}
+	\url{https://developer.nvidia.com/cufft}
+	\bibitem{openmp}
+	Dagum, Leonardo, and Ramesh Menon. "OpenMP: An industry-standard API for shared-memory programming." Computing in Science \& Engineering 1 (1998): 46-55.
+\end{thebibliography}
+
+\end{document}
