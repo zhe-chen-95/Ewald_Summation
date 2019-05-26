@@ -16,6 +16,12 @@ The fact that Ewald method is FFT based makes it possible for us to do parallel 
 
 The goal of this project is to develop a CUDA-based gpu-parallel libary to implement Ewald summation fast. Hopefully, we could use my CFD final project, which is about particles in a stokes flow above a wall, as an exemple to discuss  performance of this method.
 
+### Documents:
+
+1. [slides]{https://github.com/CecilMartin/Ewald_Summation/blob/master/report/slides.pdf}
+
+2. [report]{https://github.com/CecilMartin/Ewald_Summation/blob/master/report/draft.pdf}
+
 
 ### GPU library for NuFFT
 https://github.com/andyschwarzl/gpuNUFFT/tree/master/CUDA
