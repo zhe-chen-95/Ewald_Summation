@@ -1,6 +1,6 @@
 L = 2;
-M = 54;
-xi = 12;
+M = 53;
+xi = 10;
 m = 8;
 P = 24;
 pr = 2;
@@ -9,7 +9,7 @@ np = 1024;
 
 C_F = 1; C_R = 50; 
 eta = (P*L*xi / (M*m))^2;
-E_F = C_F * exp(-pi^2 * M^2 / (4*L*xi^2));
+E_F = C_F * exp(-pi^2 * M^2 / (4*L^2*xi^2));
 E_Q = 4 * exp(-pi^2 * P^2 / (2*m^2)) + erfc(m / sqrt(2));
 E_R = C_R * (1 / (xi^2) + pr / xi) * exp(-pr^2 * xi^2);
 
