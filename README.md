@@ -32,5 +32,5 @@ Environment on cims machine:
 ```
 cd src/
 make
-./main 
+./main num_threads N num_p P rp
 ```
