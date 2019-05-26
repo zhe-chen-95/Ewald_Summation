@@ -110,7 +110,7 @@ The formula can be split into
 which is one NuFFT (type 1) combined with scaling and another NuFFT (type 2).
 
 \paragraph{Reformulation by Gaussian Gridding \& FFT} 
-The basic idea is convolution by the Gaussian... leave it for later.
+The basic idea of conducting NuFFT here is to consider the point source as delta function and convolve it with Gaussian function to smooth it in the real space, which makes it possible to the uniform FFT. Then we conduct deconvolution in the frequency space by scaling (element-wise multiplication) and get the finally result. We will give more details in this section.
 
 For NuFFT of type 1, introducing a free parameter $\eta$, we have that
 \begin{equation}
