@@ -1,17 +1,17 @@
-L = 2;
-M = 53;
-xi = 10;
-m = 8;
-P = 24;
-pr = 2;
-np = 1024;
+L = 1;
+M = 5; %nx
+xi = 2;
+m = 8; %std of sigma of gaussian kernel
+P = M; %points within support of Gaussian kernel
+pr = 0; % layers of real space
+np = 100; % # of points
 
-
+fprintf('------------------------------------------------------------\n')
 C_F = 1; C_R = 50; 
 eta = (P*L*xi / (M*m))^2;
-E_F = C_F * exp(-pi^2 * M^2 / (4*L^2*xi^2));
-E_Q = 4 * exp(-pi^2 * P^2 / (2*m^2)) + erfc(m / sqrt(2));
-E_R = C_R * (1 / (xi^2) + pr / xi) * exp(-pr^2 * xi^2);
+E_F = C_F * exp(-pi^2 * M^2 / (4*L^2*xi^2)); % k-space // nx (14)
+E_Q = 4 * exp(-pi^2 * P^2 / (2*m^2)) + erfc(m / sqrt(2)); % quadrature error // P (25)
+E_R = C_R * (1 / (xi^2) + pr / xi) * exp(-pr^2 * xi^2); % real space (16)
 
 C_tR = 5e-7; C_tF = 7e-9; C_tG = 1e-7;
 t_R = C_tR * np^2 * pr^3;
