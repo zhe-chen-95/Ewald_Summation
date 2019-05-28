@@ -1,8 +1,11 @@
+close all
+clear;
+clc
 L = 1;
-M = 5; %nx
-xi = 2;
+M = 2; %nx
+xi = 4;
 m = 8; %std of sigma of gaussian kernel
-P = M; %points within support of Gaussian kernel
+P = 20; %points within support of Gaussian kernel
 pr = 0; % layers of real space
 np = 100; % # of points
 
