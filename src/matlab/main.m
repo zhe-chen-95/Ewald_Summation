@@ -93,7 +93,7 @@ for j=1:length(xi_all)
     plot(pr_all(1:end-1),error,'color',[0 0.4470 0.7410]);
     plot(pr_all(1:end-1),err_bound(pr_all(1:end-1),xi),'--','color',[0.8500 0.3250 0.0980]);
 end
-ylabel('Relative Error of real space')
+ylabel('Error of real space')
 set(gca,'YScale','log','YLim',[1.0e-15,1.0e2],'FontSize',14)
 
 %%
@@ -156,5 +156,5 @@ for j=1:length(xi_all)
     plot(M_all(1:end-1),error,'color',[0 0.4470 0.7410]);
     plot(M_all(1:end-1),err_bound(M_all(1:end-1),M_all(1:end-1),xi),'--','color',[0.8500 0.3250 0.0980]);
 end
-ylabel('Relative Truncation Error of k-space')
+ylabel('Error of k-space')
 set(gca,'YScale','log','FontSize',14)
