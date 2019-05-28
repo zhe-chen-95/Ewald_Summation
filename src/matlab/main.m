@@ -61,7 +61,7 @@ for i=1:length(pr_all)
     pr=pr_all(i);
     for j=1:length(xi_all)
         xi=xi_all(j);
-        eta=(P*L/M*xi/m);
+        eta=(P*L/M*xi/m)^2;
         status = system(['./main ',num2str(numthreads),' ',num2str(M),' ',num2str(np),' ',num2str(P/2),' ',num2str(pr),' ',...
             num2str(L),' ',num2str(xi),' ',num2str(eta)],'-echo');
         if status~=0
@@ -80,9 +80,10 @@ for j=1:length(xi_all)
     for i=1:length(pr_all)-1
         data1=vel_rec{i,j};
         err=sqrt(sum((data1-data0).^2,2));
-        error(i,j)=norm(err,2)/sqrt(sum(sum(data0.^2,2)));
+%         error(i,j)=norm(err,2)/sqrt(sum(sum(data0.^2,2)));
+        error(i,j)=mean(err)/np/sqrt(3);
         %     data0=data1;
-    end
+    end 
 end
 err_bound=@(pr,xi)(12*pi/xi^2+16*sqrt(pi)*pr/xi).*exp(-pr.^2.*xi^2);
 figure;
@@ -103,12 +104,12 @@ addpath ../matlab/
 DIM=3;
 L = 1;
 % M = 8; %nx
-M_all=[16,32,64];
+M_all=linspace(24,64,5);
 % M_all=20;
 % xi = 1;
-xi_all=[15,20,25];
-m = 8; %std of sigma of gaussian kernel
-P = 20; %points within support of Gaussian kernel
+xi_all=[5,10,15]; 
+m = 20; %std of sigma of gaussian kernel
+P = 64; %points within support of Gaussian kernel
 pr = 1; % layers of real space
 np = 100; % # of points
 numthreads = 4;
@@ -122,9 +123,10 @@ for i=1:length(M_all)
     M=M_all(i);
     for j=1:length(xi_all)
         xi=xi_all(j);
-        eta=(P*L/M*xi/m);
+        P=M;
+        eta=(P*L/M*xi/m)^2;
         status = system(['./main ',num2str(numthreads),' ',num2str(M),' ',num2str(np),' ',num2str(P/2),' ',num2str(pr),' ',...
-            num2str(L),' ',num2str(xi),' ',num2str(eta)],'-echo');
+            num2str(L),' ',num2str(xi),' ',num2str(eta)]);
         if status~=0
             error("not successful to do ./main");
         end
@@ -141,17 +143,18 @@ for j=1:length(xi_all)
     for i=1:length(M_all)-1
         data1=vel_rec{i,j};
         err=sqrt(sum((data1-data0).^2,2));
-        error(i,j)=norm(err,2)/sqrt(sum(sum(data0.^2,2)));
+        error(i,j)=mean(err)/sqrt(3);
+%         error(i,j)=norm(err,2)/sqrt(sum(sum(data0.^2,2)));
         %     data0=data1;
     end
 end
-err_bound=@(M,xi) 2*L^2/sqrt(pi) * (2*sqrt(pi)*M+3*xi*L).*exp(-M.^2*(pi/xi/L)^2);
+err_bound=@(M,P,xi) 2*L^2/sqrt(pi) * (2*sqrt(pi)*M+3*xi*L).*exp(-M.^2*(pi/xi/L)^2)+4*exp(-pi^2*P.^2/(2*m^2*L^2))+erfc(m/sqrt(2));
 figure;
 hold on;
 for j=1:length(xi_all)
     xi=xi_all(j);
     plot(M_all(1:end-1),error,'color',[0 0.4470 0.7410]);
-    plot(M_all(1:end-1),err_bound(M_all(1:end-1),xi),'--','color',[0.8500 0.3250 0.0980]);
+    plot(M_all(1:end-1),err_bound(M_all(1:end-1),M_all(1:end-1),xi),'--','color',[0.8500 0.3250 0.0980]);
 end
 ylabel('Relative Truncation Error of k-space')
-set(gca,'YScale','log','YLim',[1.0e-15,1.0e2],'FontSize',14)
+set(gca,'YScale','log','FontSize',14)

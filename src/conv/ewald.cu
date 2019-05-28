@@ -461,6 +461,7 @@ void Gaussian_Gridding_type2(double* H){
   double* E2_xl = (double*) calloc(2*px, sizeof(double));
   double* E2_yl = (double*) calloc(2*py, sizeof(double));
   double* E2_zl = (double*) calloc(2*pz, sizeof(double));
+  double* vel_part = (double*) calloc(np*DIM, sizeof(double));
   double V0, Vx, Vy, Vz;
   for (long i = 0; i <= px; i++) {
     E3_x[i] = exp(-a*i*i*hx_sq);
@@ -502,6 +503,7 @@ void Gaussian_Gridding_type2(double* H){
           ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
+            vel_part[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
           }
         }
       }
@@ -510,6 +512,9 @@ void Gaussian_Gridding_type2(double* H){
   printf("Gaussian_Gridding_type2 finished with %f(s)\n",(omp_get_wtime()-tt));
   free(E3_x);free(E3_y);free(E3_z);
   free(E2_xl);free(E2_yl);free(E2_zl);
+  string outputfilepart = "../../results/kspace.txt";
+  writeoutpart(vel_part,outputfilepart);
+  free(vel_part);
   return;
 }
 
