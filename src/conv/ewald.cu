@@ -286,7 +286,7 @@ void Gaussian_Gridding_type1_OMP(double *H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
           }
@@ -355,7 +355,7 @@ void Gaussian_Gridding_type1(double *H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
           }
@@ -425,7 +425,7 @@ void Gaussian_Gridding_type2_OMP(double* H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
             vel_part[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
@@ -498,7 +498,7 @@ void Gaussian_Gridding_type2(double* H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
           }

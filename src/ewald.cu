@@ -268,7 +268,7 @@ void Gaussian_Gridding_type1_OMP(double *H){
       E2_zl[k+pz-1] = pow(E2_z, k);
     }
     V0 = E1_x * E1_y * E1_z;
-    #pragma omp parallel for schedule(dynamic, 1) private(Vx, Vy, Vz, ig, jg, kg)
+    #pragma omp parallel for private(Vx, Vy, Vz, ig, jg, kg)
     for (long i = - px+1; i <= px; i++){
       // printf("i=%d, from thread = %d\n", i, omp_get_thread_num());
       Vx = V0 * E2_xl[i+px-1] * E3_x[abs(i)];
@@ -276,7 +276,7 @@ void Gaussian_Gridding_type1_OMP(double *H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
           }
@@ -345,7 +345,7 @@ void Gaussian_Gridding_type1(double *H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             H[kg + nz*(jg + ny*(ig + m*nx))] += Vz * strength[DIM*n+m];
           }
@@ -414,7 +414,7 @@ void Gaussian_Gridding_type2_OMP(double* H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
           }
@@ -483,7 +483,7 @@ void Gaussian_Gridding_type2(double* H){
         Vy = Vx * E2_yl[j+py-1] * E3_y[abs(j)];
         for (long k = -pz+1; k <= pz; k++){
           Vz = Vy * E2_zl[k+pz-1] * E3_z[abs(k)];
-          ig = (ip+i+nx) % nx; jg = (jp+j+ny) % ny; kg = (kp+k+nz) % nz;
+          ig = (ip+i+nx*px) % nx; jg = (jp+j+ny*py) % ny; kg = (kp+k+nz*pz) % nz;
           for (long m = 0; m < DIM; m++){
             vel[DIM*n+m] += scale_factor * Vz * H[kg + ny*(jg + nz*(ig + m*nx))];
           }
@@ -660,7 +660,8 @@ void kspaceParallel(){
   Gaussian_Gridding_type1_OMP(Hx);
   complex<double> *Hx_hat;
   Hx_hat = (complex<double>*)malloc(sizeof(complex<double>)*nx*ny*(nz/2+1)*3);
-  FFT3DGPU(Hx, Hx_hat);
+  //FFT3DGPU(Hx, Hx_hat);
+  FFT3D(Hx, Hx_hat);
   complex<double> Hx_tilde[3*(nx)*(ny)*(nz/2+1)];
   double kx, ky, kz, k2, e1;
   double kx0=2*M_PI/Lx, ky0=2*M_PI/Ly, kz0=2*M_PI/Lz;
@@ -713,7 +714,8 @@ void kspaceParallel(){
       }
     }
   }
-  IFFT3DGPU(Hx_tilde, Hx);
+  //IFFT3DGPU(Hx_tilde, Hx);
+  IFFT3D(Hx_tilde, Hx);
   Gaussian_Gridding_type2_OMP(Hx);
   free(Hx);
   free(Hx_hat);
