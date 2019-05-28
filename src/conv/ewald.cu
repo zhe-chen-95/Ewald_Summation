@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <omp.h>
 #include <chrono>
+#include <iomanip>
 #include "fftw3.h"
 #include "ewald.h"
 #include "utils.h"
@@ -53,7 +54,7 @@ void initialize(){
 
 
 void initialize_readinput(int N, int num_p, int P, double eta_in, int rp, double L, double xi_in){
-  srand((unsigned int) 100005);  
+  srand((unsigned int) 100005);
   // srand((unsigned int) clock());
   nx = N;
   ny = N;
@@ -821,7 +822,7 @@ void writeout(){
   output << "#Velocity obtained from Ewald summation" << endl;
   output << np << endl;
   for(long i = 0; i < np; i += 1){
-    output << i << " " << vel[DIM*i+0] << " " <<
+    output << std::setprecision(17) << i << " " << vel[DIM*i+0] << " " <<
     vel[DIM*i+1] << " " <<
     vel[DIM*i+2]<< "\n" ;
   }
@@ -835,7 +836,7 @@ void writeoutpart(double *vel, string outputfile){
   output << "#Velocity obtained from Ewald summation" << endl;
   output << np << endl;
   for(long i = 0; i < np; i += 1){
-    output << i << " " << vel[DIM*i+0] << " " <<
+    output << std::setprecision(17) << i << " " << vel[DIM*i+0] << " " <<
     vel[DIM*i+1] << " " <<
     vel[DIM*i+2]<< "\n" ;
   }

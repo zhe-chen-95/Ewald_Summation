@@ -16,13 +16,18 @@ int main(int argc, char* argv[]){
 	// cin >> num_threads;
   sscanf(argv[1], "%d", &num_threads);
   int N, num_p, P, rp;
-  double L = 1.0, xi_in = 0.2, eta_in = 0.025;
+  // double L = 1.0, xi_in = 0.2, eta_in = 0.025;
+  float L, xi_in, eta_in;
   sscanf(argv[2], "%d", &N);
   sscanf(argv[3], "%d", &num_p);
   // sscanf(argv[3], "%f", &xi_in);
   // sscanf(argv[4], "%f", &eta_in);
   sscanf(argv[4], "%d", &P);
   sscanf(argv[5], "%d", &rp);
+  sscanf(argv[6], "%f", &L);
+  sscanf(argv[7], "%f", &xi_in);
+  sscanf(argv[8], "%f", &eta_in);
+
   // sscanf(argv[7], "%f", &L);
   printf("Size N = %d with %d particles \n", N, num_p);
   printf("Gaussian P = %d, Real layer rp = %d \n", P, rp);
